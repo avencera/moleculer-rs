@@ -1,0 +1,9 @@
+[package]
+authors = ["Praveen Perera <praveen@primcloud.com>"]
+edition = "2018"
+name = "moleculer-rs"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
