@@ -13,3 +13,9 @@ serde = {version = "1.0", features = ["derive"]}
 
 # logging
 log = {version = "0.4", features = ["serde"]}
+
+# random
+rand = "0.8"
+
+# host info
+hostname = "0.3"
