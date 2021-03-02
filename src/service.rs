@@ -51,7 +51,7 @@ impl Service {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum EventType {
     Emit,
     Broadcast,
@@ -82,25 +82,4 @@ pub struct Context {
     locals: Bytes,
 
     level: i32,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_func(_ctx: Context) -> Option<Bytes> {
-        None
-    }
-
-    fn create_service() -> Service {
-        let mut service = Service::new("my-service");
-
-        service
-    }
-
-    #[test]
-    fn creates_service() {
-        create_service();
-        assert!(true)
-    }
 }

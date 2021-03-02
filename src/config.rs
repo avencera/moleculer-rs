@@ -22,14 +22,18 @@ pub struct Config {
     registry: Registry,
     circuit_breaker: CircuitBreaker,
     bulkhead: Bulkhead,
-    #[serde(rename = "transit.maxQueueSize")]
-    transit_max_queue_size: u32,
-    #[serde(rename = "transit.maxChunkSize")]
-    transit_max_chunk_size: u32,
-    #[serde(rename = "transit.disableReconnect")]
-    transit_disable_reconnect: bool,
-    #[serde(rename = "transit.disableVersionCheck")]
-    transit_disable_version_check: bool,
+    transit: Transit,
+    serializer: Serializer,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Transit {
+    max_queue_size: u32,
+    max_chunk_size: u32,
+    disable_reconnect: bool,
+    disable_version_check: bool,
+    packet_log_filter: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,7 +43,7 @@ pub enum Logger {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Transporter {
-    Nats,
+    Nats(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -57,6 +61,11 @@ pub struct RetryPolicy {
 pub struct Tracking {
     enabled: bool,
     shutdown_timeout: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Serializer {
+    JSON,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
