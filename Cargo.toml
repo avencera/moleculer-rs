@@ -7,6 +7,19 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# async
+async-trait = "0.1"
+tokio = {version = "1.2", features = ["rt-multi-thread"]}
+
+# actor framework
+act-zero = {version = "0.4", features = ["default-tokio"]}
+
+# nats
+async-nats = "0.9"
+
+# error handling
+thiserror = "1.0"
+
 # serde
 bytes = {version = "1.0", features = ["serde"]}
 serde = {version = "1.0", features = ["derive"]}
