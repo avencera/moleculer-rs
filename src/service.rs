@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
@@ -14,11 +15,14 @@ pub struct Event {
     callback: EventCallback,
 }
 
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "camelCase")]
 struct Service {
     name: String,
     version: Option<i32>,
+    #[serde(skip)]
     actions: HashMap<String, ActionCallback>,
+    #[serde(skip)]
     events: HashMap<String, EventCallback>,
 }
 
@@ -46,25 +50,32 @@ impl Service {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub enum EventType {
     Emit,
     Broadcast,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Context {
     id: String,
     broker: String,
-    nodeID: String,
+    #[serde(rename = "nodeID")]
+    node_id: String,
     action: Option<String>,
 
     event: Option<String>,
-    eventName: Option<String>,
-    eventType: Option<EventType>,
-    eventGroups: Vec<String>,
+    event_name: Option<String>,
+    event_type: Option<EventType>,
+    event_groups: Vec<String>,
 
     caller: String,
-    requestID: String,
-    parentID: String,
+    #[serde(rename = "requestID")]
+    request_id: String,
+    #[serde(rename = "parentID")]
+    parent_id: String,
 
     params: Bytes,
     meta: Bytes,
