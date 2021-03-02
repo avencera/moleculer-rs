@@ -1,5 +1,5 @@
-use log;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -24,11 +24,12 @@ pub struct Config {
     bulkhead: Bulkhead,
     transit: Transit,
     serializer: Serializer,
+    meta_data: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Transit {
+pub struct Transit {
     max_queue_size: u32,
     max_chunk_size: u32,
     disable_reconnect: bool,
@@ -69,13 +70,24 @@ pub enum Serializer {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Registry {}
+pub enum Registry {
+    Local,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CircuitBreaker {}
+pub struct CircuitBreaker {
+    enabled: bool,
+    threshold: f32,
+    min_request_count: u32,
+    window_time: u32,
+    half_open_time: u32,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Bulkhead {}
+pub struct Bulkhead {
+    enabled: bool,
+    concurrency: u32,
+    max_queue_size: u32,
+}
