@@ -29,8 +29,10 @@ pub fn gen_node_id() -> String {
 
     let pid = std::process::id().to_string();
 
-    let mut node_id = String::with_capacity(hostname.len() + pid.len() + random_string_length);
+    let mut node_id =
+        String::with_capacity("rust-".len() + hostname.len() + pid.len() + random_string_length);
 
+    node_id.push_str("rust-");
     node_id.push_str(&hostname);
     node_id.push('.');
     node_id.push_str(&pid);
