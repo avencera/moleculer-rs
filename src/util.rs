@@ -38,9 +38,7 @@ pub fn gen_node_id() -> String {
     node_id.push_str(&pid);
     node_id.push('-');
 
-    for char in random_string_iter(random_string_length) {
-        node_id.push(char)
-    }
+    random_string_iter(random_string_length).for_each(|char| node_id.push(char));
 
     node_id
 }

@@ -50,7 +50,7 @@ pub fn disconnect(config: &Config) -> String {
 }
 
 fn mol(config: &Config) -> Cow<str> {
-    if config.namespace == "" {
+    if config.namespace.is_empty() {
         Cow::Borrowed("MOL")
     } else {
         Cow::Owned(format!("MOL-{}", &config.namespace))

@@ -22,7 +22,7 @@ impl Conn {
     pub async fn new(nats_address: &str) -> Result<Conn> {
         let conn = async_nats::connect(nats_address)
             .await
-            .map_err(|e| Error::UnableToConnect(e))?;
+            .map_err(Error::UnableToConnect)?;
 
         Ok(Conn { conn })
     }
