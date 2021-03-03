@@ -31,12 +31,10 @@ struct Registry {
 
     // channels
     event: Addr<Event>,
-    events_balanced: Vec<Addr<EventBalanced>>,
 
     request: Addr<Request>,
-    requests_balanced: Vec<Addr<RequestBalanced>>,
-
     response: Addr<Response>,
+
     discover: Addr<Discover>,
     discover_targeted: Addr<DiscoverTargeted>,
 
@@ -58,12 +56,10 @@ impl Registry {
             pid: WeakAddr::detached(),
 
             event: Addr::detached(),
-            events_balanced: vec![],
 
             request: Addr::detached(),
-            requests_balanced: vec![],
-
             response: Addr::detached(),
+
             discover: Addr::detached(),
             discover_targeted: Addr::detached(),
 
@@ -98,34 +94,12 @@ impl Event {
     }
 }
 
-impl Actor for EventBalanced {}
-struct EventBalanced {
-    parent: WeakAddr<Registry>,
-}
-
-impl EventBalanced {
-    fn new(parent: WeakAddr<Registry>) -> Self {
-        Self { parent }
-    }
-}
-
 impl Actor for Request {}
 struct Request {
     parent: WeakAddr<Registry>,
 }
 
 impl Request {
-    fn new(parent: WeakAddr<Registry>) -> Self {
-        Self { parent }
-    }
-}
-
-impl Actor for RequestBalanced {}
-struct RequestBalanced {
-    parent: WeakAddr<Registry>,
-}
-
-impl RequestBalanced {
     fn new(parent: WeakAddr<Registry>) -> Self {
         Self { parent }
     }

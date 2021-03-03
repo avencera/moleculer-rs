@@ -5,20 +5,12 @@ pub fn event(config: &Config) -> String {
     format!("{}.EVENT.{}", mol(&config), &config.node_id)
 }
 
-pub fn event_balanced(config: &Config, event_name: &str) -> String {
-    format!("{}.EVENTB.{}", mol(&config), event_name)
-}
-
 pub fn request(config: &Config) -> String {
     format!("{}.REQ.{}", mol(&config), &config.node_id)
 }
 
-pub fn request_balanced(config: &Config, action_name: &str) -> String {
-    format!("{}.REQB.{}", mol(&config), action_name)
-}
-
 pub fn response(config: &Config) -> String {
-    format!("{}.REQ.{}", mol(&config), &config.node_id)
+    format!("{}.RES.{}", mol(&config), &config.node_id)
 }
 
 pub fn discover(config: &Config) -> String {
