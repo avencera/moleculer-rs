@@ -1,4 +1,5 @@
 mod name;
+mod nats;
 
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
@@ -6,10 +7,15 @@ use async_trait::async_trait;
 use log::error;
 use thiserror::Error;
 
+use crate::config::{Config, Transporter};
+
 #[derive(Error, Debug)]
 enum ChannelError {
     #[error("unknown channel error")]
     Unknown,
+
+    #[error(transparent)]
+    NatsError(nats::Error),
 }
 
 #[async_trait]
@@ -27,6 +33,8 @@ impl Actor for Registry {
 }
 
 struct Registry {
+    conn: nats::Conn,
+    config: Config,
     pid: WeakAddr<Self>,
 
     // channels
@@ -51,8 +59,16 @@ struct Registry {
 }
 
 impl Registry {
-    async fn new() -> Self {
+    async fn new(config: Config) -> Self {
+        let conn = match &config.transporter {
+            Transporter::Nats(nats_address) => nats::Conn::new(nats_address)
+                .await
+                .expect("NATS should connect"),
+        };
+
         Self {
+            conn: conn,
+            config: config,
             pid: WeakAddr::detached(),
 
             event: Addr::detached(),
