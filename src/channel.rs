@@ -1,6 +1,7 @@
 mod name;
 mod nats;
 
+use std::collections::HashMap;
 use std::time::Duration;
 
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
@@ -10,6 +11,7 @@ use async_trait::async_trait;
 use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
+use strum::{EnumIter, IntoEnumIterator};
 use sysinfo::{ProcessExt, ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
@@ -45,6 +47,7 @@ struct Registry {
     conn: nats::Conn,
     config: Config,
     pid: WeakAddr<Self>,
+    channels: HashMap<Channel, String>,
 
     // channels
     event: Addr<Event>,
@@ -67,8 +70,51 @@ struct Registry {
     disconnect: Addr<Disconnect>,
 }
 
+#[derive(EnumIter, Debug, PartialEq, Hash, Eq, Clone)]
+pub enum Channel {
+    Event,
+    Request,
+    Response,
+    Discover,
+    DiscoverTargeted,
+    Info,
+    InfoTargeted,
+    Heartbeat,
+    Ping,
+    Pong,
+    PingTargeted,
+    Disconnect,
+}
+
+impl Channel {
+    fn build_hashmap(config: &Config) -> HashMap<Channel, String> {
+        Channel::iter()
+            .map(|channel| (channel.clone(), channel.channel_to_string(config)))
+            .collect()
+    }
+
+    fn channel_to_string(&self, config: &Config) -> String {
+        match self {
+            Channel::Event => name::event(config),
+            Channel::Request => name::request(config),
+            Channel::Response => name::response(config),
+            Channel::Discover => name::discover(config),
+            Channel::DiscoverTargeted => name::discover_targeted(config),
+            Channel::Info => name::info(config),
+            Channel::InfoTargeted => name::info_targeted(config),
+            Channel::Heartbeat => name::heartbeat(config),
+            Channel::Ping => name::ping(config),
+            Channel::PingTargeted => name::ping_targeted(config),
+            Channel::Pong => name::pong(config),
+            Channel::Disconnect => name::disconnect(config),
+        }
+    }
+}
+
 impl Registry {
     async fn new(config: Config) -> Self {
+        let channels = Channel::build_hashmap(&config);
+
         let conn = match &config.transporter {
             Transporter::Nats(nats_address) => nats::Conn::new(nats_address)
                 .await
@@ -76,10 +122,11 @@ impl Registry {
         };
 
         Self {
-            conn: conn,
-            config: config,
-            pid: WeakAddr::detached(),
+            conn,
+            config,
+            channels,
 
+            pid: WeakAddr::detached(),
             event: Addr::detached(),
 
             request: Addr::detached(),
@@ -103,8 +150,22 @@ impl Registry {
 
     async fn start_listeners(&mut self) -> ActorResult<()> {
         self.event = spawn_actor(Event::new(self.pid.clone()));
-        self.heartbeat =
-            spawn_actor(Heartbeat::new(self.pid.clone(), self.conn.clone(), &self.config).await);
+        self.heartbeat = spawn_actor(Heartbeat::new(self.pid.clone(), &self.config).await);
+
+        Produces::ok(())
+    }
+
+    async fn publish(&self, channel: Channel, message: Vec<u8>) -> ActorResult<()> {
+        let channel = self
+            .channels
+            .get(&channel)
+            .expect("should always find channel");
+
+        let res = self.conn.send(&channel, message).await;
+
+        if let Err(err) = res {
+            error!("Unable to send heartbeat: {}", err)
+        }
 
         Produces::ok(())
     }
@@ -188,13 +249,12 @@ impl InfoTargeted {
 }
 
 struct Heartbeat {
-    conn: nats::Conn,
+    node_id: String,
     timer: Timer,
     parent: Addr<Registry>,
     channel: String,
     heartbeat_interval: u32,
     system: sysinfo::System,
-    node_id: String,
 }
 
 #[async_trait]
@@ -214,36 +274,36 @@ impl Tick for Heartbeat {
         self.system.refresh_cpu();
 
         if self.timer.tick() {
-            let msg = HeartbeatMessage {
-                ver: "4",
-                sender: &self.node_id,
-                cpu: self.system.get_global_processor_info().get_cpu_usage(),
-            };
-
-            let res = self
-                .conn
-                .send(&self.channel, serde_json::to_vec(&msg)?)
-                .await;
-
-            if let Err(err) = res {
-                error!("Unable to send heartbeat: {}", err)
-            }
+            let _ = self.send_heartbeat().await;
         }
         Produces::ok(())
     }
 }
 
 impl Heartbeat {
-    async fn new(parent: WeakAddr<Registry>, conn: nats::Conn, config: &Config) -> Self {
+    async fn new(parent: WeakAddr<Registry>, config: &Config) -> Self {
         Self {
-            conn: conn,
+            node_id: config.node_id.clone(),
             parent: parent.upgrade(),
             channel: name::heartbeat(config),
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
             system: System::new_with_specifics(RefreshKind::new().with_cpu()),
-            node_id: config.node_id.clone(),
         }
+    }
+
+    async fn send_heartbeat(&self) -> ActorResult<()> {
+        let msg = HeartbeatMessage {
+            ver: "4",
+            sender: &self.node_id,
+            cpu: self.system.get_global_processor_info().get_cpu_usage(),
+        };
+
+        send!(self
+            .parent
+            .publish(Channel::Heartbeat, serde_json::to_vec(&msg)?));
+
+        Produces::ok(())
     }
 }
 

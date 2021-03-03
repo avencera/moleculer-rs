@@ -34,3 +34,6 @@ rand = "0.8"
 # node information
 hostname = "0.3"
 sysinfo = "0.16"
+
+# utils
+strum = {version = "0.20", features = ["derive"]}
