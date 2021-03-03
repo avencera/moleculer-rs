@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use sysinfo::SystemExt;
 
 fn random_string(take: usize) -> String {
     let mut s = String::with_capacity(take);

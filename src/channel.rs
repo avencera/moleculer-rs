@@ -1,21 +1,30 @@
 mod name;
 mod nats;
 
-use act_zero::runtimes::tokio::spawn_actor;
+use std::time::Duration;
+
+use act_zero::runtimes::tokio::{spawn_actor, Timer};
+use act_zero::timer::Tick;
 use act_zero::*;
 use async_trait::async_trait;
 use log::error;
+use serde::{Deserialize, Serialize};
+use serde_json::to_vec;
+use sysinfo::{ProcessExt, ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
 use crate::config::{Config, Transporter};
 
 #[derive(Error, Debug)]
-enum ChannelError {
-    #[error("unknown channel error")]
-    Unknown,
+pub enum Error {
+    #[error("Unable to start listeners actor")]
+    UnableToStartListeners,
 
     #[error(transparent)]
     NatsError(nats::Error),
+
+    #[error("unknown channel error")]
+    Unknown,
 }
 
 #[async_trait]
@@ -94,6 +103,8 @@ impl Registry {
 
     async fn start_listeners(&mut self) -> ActorResult<()> {
         self.event = spawn_actor(Event::new(self.pid.clone()));
+        self.heartbeat =
+            spawn_actor(Heartbeat::new(self.pid.clone(), self.conn.clone(), &self.config).await);
 
         Produces::ok(())
     }
@@ -176,15 +187,71 @@ impl InfoTargeted {
     }
 }
 
-impl Actor for Heartbeat {}
 struct Heartbeat {
-    parent: WeakAddr<Registry>,
+    conn: nats::Conn,
+    timer: Timer,
+    parent: Addr<Registry>,
+    channel: String,
+    heartbeat_interval: u32,
+    system: sysinfo::System,
+    node_id: String,
+}
+
+#[async_trait]
+impl Actor for Heartbeat {
+    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()> {
+        // Start the timer
+        self.timer
+            .set_timeout_for_strong(addr, Duration::from_secs(self.heartbeat_interval as u64));
+
+        Produces::ok(())
+    }
+}
+
+#[async_trait]
+impl Tick for Heartbeat {
+    async fn tick(&mut self) -> ActorResult<()> {
+        self.system.refresh_cpu();
+
+        if self.timer.tick() {
+            let msg = HeartbeatMessage {
+                ver: "4",
+                sender: &self.node_id,
+                cpu: self.system.get_global_processor_info().get_cpu_usage(),
+            };
+
+            let res = self
+                .conn
+                .send(&self.channel, serde_json::to_vec(&msg)?)
+                .await;
+
+            if let Err(err) = res {
+                error!("Unable to send heartbeat: {}", err)
+            }
+        }
+        Produces::ok(())
+    }
 }
 
 impl Heartbeat {
-    fn new(parent: WeakAddr<Registry>) -> Self {
-        Self { parent }
+    async fn new(parent: WeakAddr<Registry>, conn: nats::Conn, config: &Config) -> Self {
+        Self {
+            conn: conn,
+            parent: parent.upgrade(),
+            channel: name::heartbeat(config),
+            heartbeat_interval: config.heartbeat_interval,
+            timer: Timer::default(),
+            system: System::new_with_specifics(RefreshKind::new().with_cpu()),
+            node_id: config.node_id.clone(),
+        }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+struct HeartbeatMessage<'a> {
+    ver: &'static str,
+    sender: &'a str,
+    cpu: f32,
 }
 
 impl Actor for Ping {}
@@ -231,6 +298,13 @@ impl Disconnect {
     }
 }
 
-pub async fn subscribe_to_channels() -> Result<(), ChannelError> {
+pub async fn subscribe_to_channels(config: Config) -> Result<(), Error> {
+    let registry = spawn_actor(Registry::new(config).await);
+    call!(registry.start_listeners())
+        .await
+        .map_err(|_| Error::UnableToStartListeners)?;
+
+    registry.termination().await;
+
     Ok(())
 }
