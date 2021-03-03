@@ -252,7 +252,6 @@ struct Heartbeat {
     node_id: String,
     timer: Timer,
     parent: Addr<Registry>,
-    channel: String,
     heartbeat_interval: u32,
     system: sysinfo::System,
 }
@@ -285,7 +284,6 @@ impl Heartbeat {
         Self {
             node_id: config.node_id.clone(),
             parent: parent.upgrade(),
-            channel: name::heartbeat(config),
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
             system: System::new_with_specifics(RefreshKind::new().with_cpu()),
