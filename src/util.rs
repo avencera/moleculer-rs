@@ -2,17 +2,6 @@ use std::borrow::Cow;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use sysinfo::SystemExt;
-
-fn random_string(take: usize) -> String {
-    let mut s = String::with_capacity(take);
-
-    for char in random_string_iter(take) {
-        s.push(char)
-    }
-
-    s
-}
 
 fn random_string_iter(take: usize) -> impl Iterator<Item = char> {
     thread_rng()

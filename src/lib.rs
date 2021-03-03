@@ -1,5 +1,3 @@
-use channel::subscribe_to_channels;
-
 mod util;
 
 mod config;
