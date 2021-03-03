@@ -1,4 +1,3 @@
-mod name;
 mod nats;
 
 use std::collections::HashMap;
@@ -11,11 +10,10 @@ use act_zero::*;
 use async_trait::async_trait;
 use log::error;
 use serde::{Deserialize, Serialize};
-use strum::{EnumIter, IntoEnumIterator};
 use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
-use crate::config::{Config, Transporter};
+use crate::config::{Channel, Config, Transporter};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -68,47 +66,6 @@ struct Registry {
 
     pong: Addr<Pong>,
     disconnect: Addr<Disconnect>,
-}
-
-#[derive(EnumIter, Debug, PartialEq, Hash, Eq, Clone)]
-pub enum Channel {
-    Event,
-    Request,
-    Response,
-    Discover,
-    DiscoverTargeted,
-    Info,
-    InfoTargeted,
-    Heartbeat,
-    Ping,
-    Pong,
-    PingTargeted,
-    Disconnect,
-}
-
-impl Channel {
-    fn build_hashmap(config: &Config) -> HashMap<Channel, String> {
-        Channel::iter()
-            .map(|channel| (channel.clone(), channel.channel_to_string(config)))
-            .collect()
-    }
-
-    fn channel_to_string(&self, config: &Config) -> String {
-        match self {
-            Channel::Event => name::event(config),
-            Channel::Request => name::request(config),
-            Channel::Response => name::response(config),
-            Channel::Discover => name::discover(config),
-            Channel::DiscoverTargeted => name::discover_targeted(config),
-            Channel::Info => name::info(config),
-            Channel::InfoTargeted => name::info_targeted(config),
-            Channel::Heartbeat => name::heartbeat(config),
-            Channel::Ping => name::ping(config),
-            Channel::PingTargeted => name::ping_targeted(config),
-            Channel::Pong => name::pong(config),
-            Channel::Disconnect => name::disconnect(config),
-        }
-    }
 }
 
 impl Registry {

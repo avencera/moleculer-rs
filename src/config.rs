@@ -1,6 +1,8 @@
 use crate::util;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashMap;
+use strum::{EnumIter, IntoEnumIterator};
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -176,6 +178,47 @@ impl Default for Transit {
     }
 }
 
+#[derive(EnumIter, Debug, PartialEq, Hash, Eq, Clone)]
+pub enum Channel {
+    Event,
+    Request,
+    Response,
+    Discover,
+    DiscoverTargeted,
+    Info,
+    InfoTargeted,
+    Heartbeat,
+    Ping,
+    Pong,
+    PingTargeted,
+    Disconnect,
+}
+
+impl Channel {
+    pub fn build_hashmap(config: &Config) -> HashMap<Channel, String> {
+        Channel::iter()
+            .map(|channel| (channel.clone(), channel.channel_to_string(config)))
+            .collect()
+    }
+
+    fn channel_to_string(&self, config: &Config) -> String {
+        match self {
+            Channel::Event => format!("{}.EVENT.{}", mol(&config), &config.node_id),
+            Channel::Request => format!("{}.REQ.{}", mol(&config), &config.node_id),
+            Channel::Response => format!("{}.RES.{}", mol(&config), &config.node_id),
+            Channel::Discover => format!("{}.DISCOVER", mol(&config)),
+            Channel::DiscoverTargeted => format!("{}.DISCOVER.{}", mol(&config), &config.node_id),
+            Channel::Info => format!("{}.INFO", mol(&config)),
+            Channel::InfoTargeted => format!("{}.INFO.{}", mol(&config), &config.node_id),
+            Channel::Heartbeat => format!("{}.HEARTBEAT", mol(&config)),
+            Channel::Ping => format!("{}.PING", mol(&config)),
+            Channel::PingTargeted => format!("{}.PING.{}", mol(&config), &config.node_id),
+            Channel::Pong => format!("{}.PONG.{}", mol(&config), &config.node_id),
+            Channel::Disconnect => format!("{}.DISCONNECT", mol(&config)),
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum SerializeError {
     #[error("Unable to serialize to json: {0}")]
@@ -187,5 +230,13 @@ impl Config {
         match self.serializer {
             Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
         }
+    }
+}
+
+fn mol(config: &Config) -> Cow<str> {
+    if config.namespace.is_empty() {
+        Cow::Borrowed("MOL")
+    } else {
+        Cow::Owned(format!("MOL-{}", &config.namespace))
     }
 }
