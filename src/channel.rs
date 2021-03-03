@@ -2,6 +2,7 @@ mod name;
 mod nats;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
@@ -10,9 +11,8 @@ use act_zero::*;
 use async_trait::async_trait;
 use log::error;
 use serde::{Deserialize, Serialize};
-use serde_json::to_vec;
 use strum::{EnumIter, IntoEnumIterator};
-use sysinfo::{ProcessExt, ProcessorExt, RefreshKind, System, SystemExt};
+use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
 use crate::config::{Config, Transporter};
@@ -45,7 +45,7 @@ impl Actor for Registry {
 
 struct Registry {
     conn: nats::Conn,
-    config: Config,
+    config: Arc<Config>,
     pid: WeakAddr<Self>,
     channels: HashMap<Channel, String>,
 
@@ -112,7 +112,7 @@ impl Channel {
 }
 
 impl Registry {
-    async fn new(config: Config) -> Self {
+    async fn new(config: Arc<Config>) -> Self {
         let channels = Channel::build_hashmap(&config);
 
         let conn = match &config.transporter {
@@ -249,7 +249,7 @@ impl InfoTargeted {
 }
 
 struct Heartbeat {
-    node_id: String,
+    config: Arc<Config>,
     timer: Timer,
     parent: Addr<Registry>,
     heartbeat_interval: u32,
@@ -280,9 +280,9 @@ impl Tick for Heartbeat {
 }
 
 impl Heartbeat {
-    async fn new(parent: WeakAddr<Registry>, config: &Config) -> Self {
+    async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>) -> Self {
         Self {
-            node_id: config.node_id.clone(),
+            config: Arc::clone(config),
             parent: parent.upgrade(),
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
@@ -293,13 +293,13 @@ impl Heartbeat {
     async fn send_heartbeat(&self) -> ActorResult<()> {
         let msg = HeartbeatMessage {
             ver: "4",
-            sender: &self.node_id,
+            sender: &self.config.node_id,
             cpu: self.system.get_global_processor_info().get_cpu_usage(),
         };
 
         send!(self
             .parent
-            .publish(Channel::Heartbeat, serde_json::to_vec(&msg)?));
+            .publish(Channel::Heartbeat, self.config.serialize(msg)?));
 
         Produces::ok(())
     }
@@ -356,7 +356,7 @@ impl Disconnect {
     }
 }
 
-pub async fn subscribe_to_channels(config: Config) -> Result<(), Error> {
+pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
     let registry = spawn_actor(Registry::new(config).await);
     call!(registry.start_listeners())
         .await

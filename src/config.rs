@@ -1,7 +1,7 @@
+use crate::util;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use crate::util;
+use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -172,6 +172,20 @@ impl Default for Transit {
             disable_reconnect: false,
             disable_version_check: false,
             packet_log_filter: vec![],
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum SerializeError {
+    #[error("Unable to serialize to json: {0}")]
+    JSON(serde_json::error::Error),
+}
+
+impl Config {
+    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
+        match self.serializer {
+            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
         }
     }
 }

@@ -5,6 +5,8 @@ mod service;
 
 mod channel;
 
+use std::sync::Arc;
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,7 +16,7 @@ pub enum Error {
 }
 
 pub async fn start() -> Result<(), Error> {
-    channel::subscribe_to_channels(config::Config::default())
+    channel::subscribe_to_channels(Arc::new(config::Config::default()))
         .await
         .map_err(Error::ChannelError)
 }
