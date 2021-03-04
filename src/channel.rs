@@ -8,7 +8,7 @@ use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::*;
 use async_trait::async_trait;
-use log::error;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
@@ -123,6 +123,17 @@ impl Registry {
         if let Err(err) = res {
             error!("Unable to send heartbeat: {}", err)
         }
+
+        Produces::ok(())
+    }
+
+    async fn send_disconnect(&self) -> ActorResult<()> {
+        let msg = DisconnectMessage {
+            ver: "4",
+            sender: &self.config.node_id,
+        };
+
+        let _ = self.publish(Channel::Disconnect, self.config.serialize(msg)?);
 
         Produces::ok(())
     }
@@ -313,11 +324,22 @@ impl Disconnect {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct DisconnectMessage<'a> {
+    ver: &'static str,
+    sender: &'a str,
+}
+
 pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
     let registry = spawn_actor(Registry::new(config).await);
+    let registry_clone = registry.clone();
+
     call!(registry.start_listeners())
         .await
         .map_err(|_| Error::UnableToStartListeners)?;
+
+    // detects SIGTERM and sends disconnect package
+    let _ = ctrlc::set_handler(move || send!(registry_clone.send_disconnect()));
 
     registry.termination().await;
 
