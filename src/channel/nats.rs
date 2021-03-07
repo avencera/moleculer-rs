@@ -2,7 +2,6 @@ use async_nats::{Connection, Subscription};
 use log::{error, warn};
 use thiserror::Error;
 
-pub type Message = async_nats::Message;
 type Result<T> = std::result::Result<T, self::Error>;
 
 #[derive(Error, Debug)]

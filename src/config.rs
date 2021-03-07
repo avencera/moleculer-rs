@@ -1,5 +1,5 @@
 use crate::util;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use strum::{EnumIter, IntoEnumIterator};
@@ -201,7 +201,7 @@ impl Channel {
             .collect()
     }
 
-    fn channel_to_string(&self, config: &Config) -> String {
+    pub fn channel_to_string(&self, config: &Config) -> String {
         match self {
             Channel::Event => format!("{}.EVENT.{}", mol(&config), &config.node_id),
             Channel::Request => format!("{}.REQ.{}", mol(&config), &config.node_id),
@@ -225,10 +225,22 @@ pub enum SerializeError {
     JSON(serde_json::error::Error),
 }
 
+#[derive(Error, Debug)]
+pub enum DeserializeError {
+    #[error("Unable to deserialize from json: {0}")]
+    JSON(serde_json::error::Error),
+}
+
 impl Config {
     pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
         match self.serializer {
             Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
+        }
+    }
+
+    pub fn deserialize<T: DeserializeOwned>(&self, msg: &Vec<u8>) -> Result<T, DeserializeError> {
+        match self.serializer {
+            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
         }
     }
 }

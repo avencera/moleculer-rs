@@ -7,13 +7,16 @@ use std::time::Duration;
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::*;
+use async_nats::{Message, Subscription};
 use async_trait::async_trait;
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
-use crate::config::{Channel, Config, Transporter};
+use crate::config::{self, Channel, Config, Transporter};
+
+use self::nats::Conn;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -21,7 +24,10 @@ pub enum Error {
     UnableToStartListeners,
 
     #[error(transparent)]
-    NatsError(nats::Error),
+    NatsError(#[from] nats::Error),
+
+    #[error(transparent)]
+    DeserializeError(#[from] config::DeserializeError),
 
     #[error("unknown channel error")]
     Unknown,
@@ -108,6 +114,7 @@ impl Registry {
     async fn start_listeners(&mut self) -> ActorResult<()> {
         self.event = spawn_actor(Event::new(self.pid.clone()));
         self.heartbeat = spawn_actor(Heartbeat::new(self.pid.clone(), &self.config).await);
+        self.ping = spawn_actor(Ping::new(self.pid.clone(), &self.config, &self.conn).await);
 
         Produces::ok(())
     }
@@ -282,12 +289,47 @@ struct HeartbeatMessage<'a> {
 
 impl Actor for Ping {}
 struct Ping {
+    conn: Conn,
+    config: Arc<Config>,
+    channel: Subscription,
     parent: WeakAddr<Registry>,
 }
 
+#[derive(Deserialize)]
+struct PingMessage {
+    ver: String,
+    sender: String,
+    id: String,
+    time: i64,
+}
+
 impl Ping {
-    fn new(parent: WeakAddr<Registry>) -> Self {
-        Self { parent }
+    pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
+        Self {
+            conn: conn.clone(),
+            parent,
+            channel: conn
+                .subscribe(&Channel::Ping.channel_to_string(&config))
+                .await
+                .unwrap(),
+            config: Arc::clone(config),
+        }
+    }
+
+    pub async fn listen(&mut self) {
+        info!("Listening for Ping messages");
+
+        while let Some(msg) = self.channel.next().await {
+            match self.handle_message(msg).await {
+                Ok(_) => debug!("Successfully handled PING message"),
+                Err(e) => error!("Unable to handle PING message: {}", e),
+            }
+        }
+    }
+
+    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+        let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
+        Ok(())
     }
 }
 
