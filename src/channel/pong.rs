@@ -6,11 +6,25 @@ use crate::{
 use super::{ChannelSupervisor, Error};
 use act_zero::*;
 use async_nats::{Message, Subscription};
+use async_trait::async_trait;
 use log::{debug, error, info};
 use serde::Deserialize;
 use std::{sync::Arc, time::SystemTime};
 
-impl Actor for Pong {}
+#[async_trait]
+impl Actor for Pong {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("Pong Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
+    }
+}
 pub struct Pong {
     config: Arc<Config>,
     channel: Subscription,

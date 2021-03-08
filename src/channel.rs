@@ -1,3 +1,5 @@
+pub mod messages;
+
 mod disconnect;
 mod discover;
 mod heartbeat;
@@ -21,9 +23,11 @@ use crate::{
 };
 
 use self::{
-    disconnect::{Disconnect, DisconnectMessage},
-    discover::Discover,
+    disconnect::Disconnect,
+    discover::{Discover, DiscoverTargeted},
     heartbeat::Heartbeat,
+    info::{Info, InfoTargeted},
+    messages::outgoing::DisconnectMessage,
     ping::{Ping, PingTargeted},
     pong::Pong,
 };
@@ -124,23 +128,30 @@ impl ChannelSupervisor {
     async fn start_listeners(&mut self) -> ActorResult<()> {
         self.heartbeat =
             spawn_actor(Heartbeat::new(self.pid.clone(), &self.config, &self.conn).await);
-        send!(self.heartbeat.listen());
 
         self.ping = spawn_actor(Ping::new(self.pid.clone(), &self.config, &self.conn).await);
-        send!(self.ping.listen());
 
         self.ping_targeted =
             spawn_actor(PingTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
-        send!(self.ping_targeted.listen());
 
         self.pong = spawn_actor(Pong::new(self.pid.clone(), &self.config, &self.conn).await);
-        send!(self.pong.listen());
 
         self.disconnect =
             spawn_actor(Disconnect::new(self.pid.clone(), &self.config, &self.conn).await);
-        send!(self.disconnect.listen());
+
+        self.discover =
+            spawn_actor(Discover::new(self.pid.clone(), &self.config, &self.conn).await);
+
+        self.discover_targeted =
+            spawn_actor(DiscoverTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
         Produces::ok(())
+    }
+
+    // used by DiscoverTargeted once its started
+    // should only broadcast discover message if listening for the return messages
+    async fn broadcast_discover(&self) {
+        send!(self.discover.broadcast());
     }
 
     async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
@@ -204,39 +215,6 @@ struct Response {
 }
 
 impl Response {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
-    }
-}
-
-impl Actor for DiscoverTargeted {}
-struct DiscoverTargeted {
-    parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl DiscoverTargeted {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
-    }
-}
-
-impl Actor for Info {}
-struct Info {
-    parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl Info {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
-    }
-}
-
-impl Actor for InfoTargeted {}
-struct InfoTargeted {
-    parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl InfoTargeted {
     fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }

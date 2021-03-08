@@ -3,6 +3,7 @@ use crate::{
     nats::Conn,
 };
 
+use super::messages::outgoing::HeartbeatMessage;
 use super::{ChannelSupervisor, Error};
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
@@ -10,7 +11,6 @@ use act_zero::*;
 use async_nats::{Message, Subscription};
 use async_trait::async_trait;
 use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 
@@ -25,12 +25,21 @@ pub struct Heartbeat {
 
 #[async_trait]
 impl Actor for Heartbeat {
-    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()> {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+
         // Start the timer
         self.timer
-            .set_timeout_for_strong(addr, Duration::from_secs(self.heartbeat_interval as u64));
+            .set_timeout_for_strong(pid, Duration::from_secs(self.heartbeat_interval as u64));
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("Heartbeat Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
     }
 }
 
@@ -83,11 +92,10 @@ impl Heartbeat {
     }
 
     async fn send_heartbeat(&self) -> ActorResult<()> {
-        let msg = HeartbeatMessage {
-            ver: "4",
-            sender: &self.config.node_id,
-            cpu: self.system.get_global_processor_info().get_cpu_usage(),
-        };
+        let msg = HeartbeatMessage::new(
+            &self.config.node_id,
+            self.system.get_global_processor_info().get_cpu_usage(),
+        );
 
         send!(self
             .parent
@@ -95,18 +103,4 @@ impl Heartbeat {
 
         Produces::ok(())
     }
-}
-
-#[derive(Serialize)]
-struct HeartbeatMessage<'a> {
-    ver: &'static str,
-    sender: &'a str,
-    cpu: f32,
-}
-
-#[derive(Deserialize)]
-struct HeartbeatMessageOwned {
-    ver: String,
-    sender: String,
-    cpu: f32,
 }

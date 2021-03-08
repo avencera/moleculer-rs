@@ -3,52 +3,35 @@ use crate::{
     nats::Conn,
 };
 
-use super::{ChannelSupervisor, Error};
+use super::{
+    messages::{incoming::PingMessage, outgoing::PongMessage},
+    ChannelSupervisor, Error,
+};
+
 use act_zero::*;
 use async_nats::{Message, Subscription};
+use async_trait::async_trait;
 use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
-impl Actor for Ping {}
+#[async_trait]
+impl Actor for Ping {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("Ping Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
+    }
+}
 pub struct Ping {
     config: Arc<Config>,
     channel: Subscription,
     parent: WeakAddr<ChannelSupervisor>,
-}
-
-#[derive(Deserialize)]
-struct PingMessage {
-    ver: String,
-    sender: String,
-    id: String,
-    time: i64,
-}
-
-#[derive(Serialize)]
-struct PongMessage<'a> {
-    ver: String,
-    sender: &'a str,
-    id: String,
-    time: i64,
-    arrived: i64,
-}
-
-impl<'a> From<(PingMessage, &'a str)> for PongMessage<'a> {
-    fn from(from: (PingMessage, &'a str)) -> Self {
-        let (ping, node_id) = from;
-
-        Self {
-            ver: ping.ver,
-            id: ping.id,
-            sender: node_id,
-            time: ping.time,
-            arrived: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("now should always be before unix epoch")
-                .as_millis() as i64,
-        }
-    }
 }
 
 impl Ping {
@@ -96,7 +79,20 @@ impl Ping {
     }
 }
 
-impl Actor for PingTargeted {}
+#[async_trait]
+impl Actor for PingTargeted {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("PingTargeted Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
+    }
+}
 pub struct PingTargeted {
     config: Arc<Config>,
     channel: Subscription,

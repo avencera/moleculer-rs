@@ -6,11 +6,24 @@ use crate::{
 use super::{ChannelSupervisor, Error};
 use act_zero::*;
 use async_nats::{Message, Subscription};
+use async_trait::async_trait;
 use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-impl Actor for Disconnect {}
+#[async_trait]
+impl Actor for Disconnect {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("Disconnect Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
+    }
+}
 pub struct Disconnect {
     parent: WeakAddr<ChannelSupervisor>,
     config: Arc<Config>,
@@ -49,22 +62,4 @@ impl Disconnect {
         // do nothing with incoming disconnect messages for now
         Ok(())
     }
-}
-
-#[derive(Serialize)]
-pub struct DisconnectMessage<'a> {
-    ver: &'static str,
-    sender: &'a str,
-}
-
-impl<'a> DisconnectMessage<'a> {
-    pub fn new(sender: &'a str) -> Self {
-        Self { ver: "4", sender }
-    }
-}
-
-#[derive(Deserialize)]
-struct DisconnectMessageOwned {
-    ver: String,
-    sender: String,
 }
