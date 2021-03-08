@@ -1,5 +1,9 @@
 pub mod incoming {
+    use std::collections::HashMap;
+
     use serde::Deserialize;
+
+    use crate::{config::Client, service::Service};
 
     #[derive(Deserialize)]
     pub struct PingMessage {
@@ -21,10 +25,30 @@ pub mod incoming {
         pub ver: String,
         pub sender: String,
     }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct InfoMessage {
+        ver: String,
+        sender: String,
+
+        services: Vec<Service>,
+        ip_list: Vec<String>,
+        hostname: String,
+        client: Client,
+
+        #[serde(rename = "instanceID")]
+        instance_id: String,
+
+        config: HashMap<String, String>,
+        metadata: HashMap<String, String>,
+    }
 }
 
 pub mod outgoing {
-    use std::time::SystemTime;
+    use std::{collections::HashMap, time::SystemTime};
+
+    use crate::{config::Client, service::Service};
 
     use super::incoming::PingMessage;
     use serde::Serialize;
@@ -94,5 +118,23 @@ pub mod outgoing {
         pub fn new(sender: &'a str) -> Self {
             Self { ver: "4", sender }
         }
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct InfoMessage<'a> {
+        ver: &'static str,
+        sender: &'a str,
+
+        services: Vec<Service>,
+        ip_list: &'a Vec<String>,
+        hostname: &'a str,
+        client: &'a Client,
+
+        #[serde(rename = "instanceID")]
+        instance_id: &'a str,
+
+        config: HashMap<String, String>,
+        metadata: HashMap<String, String>,
     }
 }

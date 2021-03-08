@@ -29,6 +29,11 @@ pub struct Config {
     pub transit: Transit,
     pub serializer: Serializer,
     pub meta_data: HashMap<String, String>,
+
+    pub ip_list: Vec<String>,
+    pub hostname: String,
+    pub instance_id: String,
+    pub client: Client,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -253,4 +258,13 @@ fn mol(config: &Config) -> Cow<str> {
     } else {
         Cow::Owned(format!("MOL-{}", &config.namespace))
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Client {
+    #[serde(rename = "type")]
+    type_: String,
+    version: String,
+    lang_version: String,
 }
