@@ -1,16 +1,17 @@
 mod disconnect;
+mod discover;
 mod heartbeat;
+mod info;
 mod ping;
 mod pong;
 
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::{collections::HashMap, time::SystemTime};
 
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
-use async_nats::{Message, Subscription};
 use async_trait::async_trait;
-use log::{debug, error, info};
+use log::error;
 use thiserror::Error;
 
 use crate::{
@@ -21,6 +22,7 @@ use crate::{
 
 use self::{
     disconnect::{Disconnect, DisconnectMessage},
+    discover::Discover,
     heartbeat::Heartbeat,
     ping::{Ping, PingTargeted},
     pong::Pong,
@@ -120,7 +122,6 @@ impl ChannelSupervisor {
     }
 
     async fn start_listeners(&mut self) -> ActorResult<()> {
-        self.event = spawn_actor(Event::new(self.pid.clone()));
         self.heartbeat =
             spawn_actor(Heartbeat::new(self.pid.clone(), &self.config, &self.conn).await);
         send!(self.heartbeat.listen());
@@ -203,17 +204,6 @@ struct Response {
 }
 
 impl Response {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
-    }
-}
-
-impl Actor for Discover {}
-struct Discover {
-    parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl Discover {
     fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
