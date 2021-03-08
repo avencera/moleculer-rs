@@ -1,22 +1,30 @@
-mod nats;
+mod disconnect;
+mod heartbeat;
+mod ping;
+mod pong;
 
 use std::sync::Arc;
-use std::time::Duration;
 use std::{collections::HashMap, time::SystemTime};
 
-use act_zero::runtimes::tokio::{spawn_actor, Timer};
-use act_zero::timer::Tick;
+use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_nats::{Message, Subscription};
 use async_trait::async_trait;
 use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
-use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
-use crate::config::{self, Channel, Config, Transporter};
+use crate::{
+    config,
+    config::{Channel, Config, Transporter},
+    nats,
+};
 
-use self::nats::Conn;
+use self::{
+    disconnect::{Disconnect, DisconnectMessage},
+    heartbeat::Heartbeat,
+    ping::{Ping, PingTargeted},
+    pong::Pong,
+};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -34,20 +42,20 @@ pub enum Error {
 }
 
 #[async_trait]
-impl Actor for Registry {
+impl Actor for ChannelSupervisor {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
         self.pid = pid.downgrade();
         Produces::ok(())
     }
 
     async fn error(&mut self, error: ActorError) -> bool {
-        error!("Registry Actor Error: {:?}", error);
+        error!("ChannelSupervisor Actor Error: {:?}", error);
         // do not stop on actor error
         false
     }
 }
 
-struct Registry {
+pub struct ChannelSupervisor {
     conn: nats::Conn,
     config: Arc<Config>,
     pid: WeakAddr<Self>,
@@ -74,7 +82,7 @@ struct Registry {
     disconnect: Addr<Disconnect>,
 }
 
-impl Registry {
+impl ChannelSupervisor {
     async fn new(config: Arc<Config>) -> Self {
         let channels = Channel::build_hashmap(&config);
 
@@ -159,10 +167,7 @@ impl Registry {
     }
 
     async fn send_disconnect(&self) -> ActorResult<()> {
-        let msg = DisconnectMessage {
-            ver: "4",
-            sender: &self.config.node_id,
-        };
+        let msg = DisconnectMessage::new(&self.config.node_id);
 
         let _ = self.publish(Channel::Disconnect, self.config.serialize(msg)?);
 
@@ -172,401 +177,83 @@ impl Registry {
 
 impl Actor for Event {}
 struct Event {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl Event {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
 impl Actor for Request {}
 struct Request {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl Request {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
 impl Actor for Response {}
 struct Response {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl Response {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
 impl Actor for Discover {}
 struct Discover {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl Discover {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
 impl Actor for DiscoverTargeted {}
 struct DiscoverTargeted {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl DiscoverTargeted {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
 impl Actor for Info {}
 struct Info {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl Info {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
 impl Actor for InfoTargeted {}
 struct InfoTargeted {
-    parent: WeakAddr<Registry>,
+    parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl InfoTargeted {
-    fn new(parent: WeakAddr<Registry>) -> Self {
+    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
         Self { parent }
     }
 }
 
-struct Heartbeat {
-    config: Arc<Config>,
-    timer: Timer,
-    channel: Subscription,
-    parent: Addr<Registry>,
-    heartbeat_interval: u32,
-    system: sysinfo::System,
-}
-
-#[async_trait]
-impl Actor for Heartbeat {
-    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()> {
-        // Start the timer
-        self.timer
-            .set_timeout_for_strong(addr, Duration::from_secs(self.heartbeat_interval as u64));
-
-        Produces::ok(())
-    }
-}
-
-#[async_trait]
-impl Tick for Heartbeat {
-    async fn tick(&mut self) -> ActorResult<()> {
-        self.system.refresh_cpu();
-
-        if self.timer.tick() {
-            let _ = self.send_heartbeat().await;
-        }
-        Produces::ok(())
-    }
-}
-
-impl Heartbeat {
-    async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
-        Self {
-            config: Arc::clone(config),
-            parent: parent.upgrade(),
-            channel: conn
-                .subscribe(&Channel::Heartbeat.channel_to_string(&config))
-                .await
-                .unwrap(),
-            heartbeat_interval: config.heartbeat_interval,
-            timer: Timer::default(),
-            system: System::new_with_specifics(RefreshKind::new().with_cpu()),
-        }
-    }
-
-    pub async fn listen(&mut self) {
-        info!("Listening for HEARTBEAT messages");
-
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled HEARTBEAT message"),
-                Err(e) => error!("Unable to handle HEARTBEAT message: {}", e),
-            }
-        }
-    }
-
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // let heartbeat_msg: HeartbeatMessageOwned = self.config.deserialize(&msg.data)?;
-        // do nothing with incoming heartbeat messages for now
-        Ok(())
-    }
-
-    async fn send_heartbeat(&self) -> ActorResult<()> {
-        let msg = HeartbeatMessage {
-            ver: "4",
-            sender: &self.config.node_id,
-            cpu: self.system.get_global_processor_info().get_cpu_usage(),
-        };
-
-        send!(self
-            .parent
-            .publish(Channel::Heartbeat, self.config.serialize(msg)?));
-
-        Produces::ok(())
-    }
-}
-
-#[derive(Serialize)]
-struct HeartbeatMessage<'a> {
-    ver: &'static str,
-    sender: &'a str,
-    cpu: f32,
-}
-
-#[derive(Deserialize)]
-struct HeartbeatMessageOwned {
-    ver: String,
-    sender: String,
-    cpu: f32,
-}
-
-impl Actor for Ping {}
-struct Ping {
-    config: Arc<Config>,
-    channel: Subscription,
-    parent: WeakAddr<Registry>,
-}
-
-#[derive(Deserialize)]
-struct PingMessage {
-    ver: String,
-    sender: String,
-    id: String,
-    time: i64,
-}
-
-#[derive(Serialize)]
-struct PongMessage<'a> {
-    ver: String,
-    sender: &'a str,
-    id: String,
-    time: i64,
-    arrived: i64,
-}
-
-impl<'a> From<(PingMessage, &'a str)> for PongMessage<'a> {
-    fn from(from: (PingMessage, &'a str)) -> Self {
-        let (ping, node_id) = from;
-
-        Self {
-            ver: ping.ver,
-            id: ping.id,
-            sender: node_id,
-            time: ping.time,
-            arrived: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("now should always be before unix epoch")
-                .as_millis() as i64,
-        }
-    }
-}
-
-impl Ping {
-    pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
-        Self {
-            parent,
-            channel: conn
-                .subscribe(&Channel::Ping.channel_to_string(&config))
-                .await
-                .unwrap(),
-            config: Arc::clone(config),
-        }
-    }
-
-    pub async fn listen(&mut self) {
-        info!("Listening for PING messages");
-
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled PING message"),
-                Err(e) => error!("Unable to handle PING message: {}", e),
-            }
-        }
-    }
-
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
-        let channel = format!(
-            "{}.{}",
-            Channel::PongPrefix.channel_to_string(&self.config),
-            &ping_message.sender
-        );
-
-        let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();
-
-        send!(self
-            .parent
-            .publish_to_channel(channel, self.config.serialize(pong_message)?));
-
-        Ok(())
-    }
-}
-
-impl Actor for PingTargeted {}
-struct PingTargeted {
-    config: Arc<Config>,
-    channel: Subscription,
-    parent: WeakAddr<Registry>,
-}
-
-impl PingTargeted {
-    pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
-        Self {
-            parent,
-            channel: conn
-                .subscribe(&Channel::PingTargeted.channel_to_string(&config))
-                .await
-                .unwrap(),
-            config: Arc::clone(config),
-        }
-    }
-
-    pub async fn listen(&mut self) {
-        info!("Listening for Ping messages");
-
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled PING message"),
-                Err(e) => error!("Unable to handle PING message: {}", e),
-            }
-        }
-    }
-
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
-        let channel = format!(
-            "{}.{}",
-            Channel::PongPrefix.channel_to_string(&self.config),
-            &ping_message.sender
-        );
-
-        let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();
-
-        send!(self
-            .parent
-            .publish_to_channel(channel, self.config.serialize(pong_message)?));
-
-        Ok(())
-    }
-}
-
-impl Actor for Pong {}
-struct Pong {
-    config: Arc<Config>,
-    channel: Subscription,
-    parent: WeakAddr<Registry>,
-}
-
-#[derive(Deserialize)]
-struct PongMessageOwned {
-    ver: String,
-    sender: String,
-    id: String,
-    time: i64,
-    arrived: i64,
-}
-
-impl Pong {
-    pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
-        Self {
-            parent,
-            channel: conn
-                .subscribe(&Channel::Pong.channel_to_string(&config))
-                .await
-                .unwrap(),
-            config: Arc::clone(config),
-        }
-    }
-
-    pub async fn listen(&mut self) {
-        info!("Listening for PONG messages");
-
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled PONG message"),
-                Err(e) => error!("Unable to handle PONG message: {}", e),
-            }
-        }
-    }
-
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // let pong_msg: PongMessageOwned = self.config.deserialize(&msg.data)?;
-        // do nothing with incoming disconnect messages for now
-        Ok(())
-    }
-}
-
-impl Actor for Disconnect {}
-struct Disconnect {
-    parent: WeakAddr<Registry>,
-    config: Arc<Config>,
-    channel: Subscription,
-}
-
-impl Disconnect {
-    pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
-        Self {
-            parent,
-            channel: conn
-                .subscribe(&Channel::Disconnect.channel_to_string(&config))
-                .await
-                .unwrap(),
-            config: Arc::clone(config),
-        }
-    }
-
-    pub async fn listen(&mut self) {
-        info!("Listening for DISCONNECT messages");
-
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled DISCONNECT message"),
-                Err(e) => error!("Unable to handle DISCONNECT message: {}", e),
-            }
-        }
-    }
-
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // let disconnect_msg: DisconnectMessageOwned = self.config.deserialize(&msg.data)?;
-        // do nothing with incoming disconnect messages for now
-        Ok(())
-    }
-}
-
-#[derive(Serialize)]
-struct DisconnectMessage<'a> {
-    ver: &'static str,
-    sender: &'a str,
-}
-
-#[derive(Deserialize)]
-struct DisconnectMessageOwned {
-    ver: String,
-    sender: String,
-}
-
 pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
-    let registry = spawn_actor(Registry::new(config).await);
+    let registry = spawn_actor(ChannelSupervisor::new(config).await);
     let registry_clone = registry.clone();
 
     call!(registry.start_listeners())

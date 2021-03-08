@@ -4,6 +4,7 @@ mod config;
 mod service;
 
 mod channel;
+mod nats;
 
 use std::sync::Arc;
 
