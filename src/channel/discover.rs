@@ -89,6 +89,7 @@ impl Actor for DiscoverTargeted {
     }
 }
 
+// This one shouldn't be used to much, DISCOVER packets are usually sent to the DISCOVER broadcast channel
 pub struct DiscoverTargeted {
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
@@ -123,8 +124,7 @@ impl DiscoverTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // received a response to the DISCOVER packet
-        // do nothing for now
+        // TODO: send back INFO packet
         Ok(())
     }
 }
