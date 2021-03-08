@@ -189,6 +189,7 @@ pub enum Channel {
     InfoTargeted,
     Heartbeat,
     Ping,
+    PongPrefix,
     Pong,
     PingTargeted,
     Disconnect,
@@ -213,6 +214,7 @@ impl Channel {
             Channel::Heartbeat => format!("{}.HEARTBEAT", mol(&config)),
             Channel::Ping => format!("{}.PING", mol(&config)),
             Channel::PingTargeted => format!("{}.PING.{}", mol(&config), &config.node_id),
+            Channel::PongPrefix => format!("{}.PONG", mol(&config)),
             Channel::Pong => format!("{}.PONG.{}", mol(&config), &config.node_id),
             Channel::Disconnect => format!("{}.DISCONNECT", mol(&config)),
         }
@@ -238,7 +240,7 @@ impl Config {
         }
     }
 
-    pub fn deserialize<T: DeserializeOwned>(&self, msg: &Vec<u8>) -> Result<T, DeserializeError> {
+    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
         match self.serializer {
             Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
         }

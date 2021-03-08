@@ -121,17 +121,26 @@ impl Registry {
         Produces::ok(())
     }
 
+    async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
+    where
+        T: AsRef<str>,
+    {
+        let res = self.conn.send(channel.as_ref(), message).await;
+
+        if let Err(err) = res {
+            error!("Unable to send heartbeat: {}", err)
+        }
+
+        Produces::ok(())
+    }
+
     async fn publish(&self, channel: Channel, message: Vec<u8>) -> ActorResult<()> {
         let channel = self
             .channels
             .get(&channel)
             .expect("should always find channel");
 
-        let res = self.conn.send(&channel, message).await;
-
-        if let Err(err) = res {
-            error!("Unable to send heartbeat: {}", err)
-        }
+        let _ = self.publish_to_channel(channel.as_str(), message);
 
         Produces::ok(())
     }
@@ -291,7 +300,6 @@ struct HeartbeatMessage<'a> {
 
 impl Actor for Ping {}
 struct Ping {
-    conn: Conn,
     config: Arc<Config>,
     channel: Subscription,
     parent: WeakAddr<Registry>,
@@ -334,7 +342,6 @@ impl<'a> From<(PingMessage, &'a str)> for PongMessage<'a> {
 impl Ping {
     pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            conn: conn.clone(),
             parent,
             channel: conn
                 .subscribe(&Channel::Ping.channel_to_string(&config))
@@ -357,11 +364,17 @@ impl Ping {
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
         let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
+        let channel = format!(
+            "{}.{}",
+            Channel::PongPrefix.channel_to_string(&self.config),
+            &ping_message.sender
+        );
+
         let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();
 
         send!(self
             .parent
-            .publish(Channel::Pong, self.config.serialize(pong_message)?));
+            .publish_to_channel(channel, self.config.serialize(pong_message)?));
 
         Ok(())
     }
