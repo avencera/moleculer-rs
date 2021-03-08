@@ -1,8 +1,8 @@
 mod nats;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{collections::HashMap, time::SystemTime};
 
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
@@ -29,8 +29,8 @@ pub enum Error {
     #[error(transparent)]
     DeserializeError(#[from] config::DeserializeError),
 
-    #[error("unknown channel error")]
-    Unknown,
+    #[error(transparent)]
+    SerializeError(#[from] config::SerializeError),
 }
 
 #[async_trait]
@@ -114,7 +114,9 @@ impl Registry {
     async fn start_listeners(&mut self) -> ActorResult<()> {
         self.event = spawn_actor(Event::new(self.pid.clone()));
         self.heartbeat = spawn_actor(Heartbeat::new(self.pid.clone(), &self.config).await);
+
         self.ping = spawn_actor(Ping::new(self.pid.clone(), &self.config, &self.conn).await);
+        send!(self.ping.listen());
 
         Produces::ok(())
     }
@@ -303,6 +305,32 @@ struct PingMessage {
     time: i64,
 }
 
+#[derive(Serialize)]
+struct PongMessage<'a> {
+    ver: String,
+    sender: &'a str,
+    id: String,
+    time: i64,
+    arrived: i64,
+}
+
+impl<'a> From<(PingMessage, &'a str)> for PongMessage<'a> {
+    fn from(from: (PingMessage, &'a str)) -> Self {
+        let (ping, node_id) = from;
+
+        Self {
+            ver: ping.ver,
+            id: ping.id,
+            sender: node_id,
+            time: ping.time,
+            arrived: SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("now should always be before unix epoch")
+                .as_millis() as i64,
+        }
+    }
+}
+
 impl Ping {
     pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
@@ -329,6 +357,12 @@ impl Ping {
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
         let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
+        let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();
+
+        send!(self
+            .parent
+            .publish(Channel::Pong, self.config.serialize(pong_message)?));
+
         Ok(())
     }
 }
