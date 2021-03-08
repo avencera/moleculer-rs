@@ -118,6 +118,10 @@ impl Registry {
         self.ping = spawn_actor(Ping::new(self.pid.clone(), &self.config, &self.conn).await);
         send!(self.ping.listen());
 
+        self.ping_targeted =
+            spawn_actor(PingTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
+        send!(self.ping_targeted.listen());
+
         Produces::ok(())
     }
 
@@ -382,12 +386,49 @@ impl Ping {
 
 impl Actor for PingTargeted {}
 struct PingTargeted {
+    config: Arc<Config>,
+    channel: Subscription,
     parent: WeakAddr<Registry>,
 }
 
 impl PingTargeted {
-    fn new(parent: WeakAddr<Registry>) -> Self {
-        Self { parent }
+    pub async fn new(parent: WeakAddr<Registry>, config: &Arc<Config>, conn: &Conn) -> Self {
+        Self {
+            parent,
+            channel: conn
+                .subscribe(&Channel::PingTargeted.channel_to_string(&config))
+                .await
+                .unwrap(),
+            config: Arc::clone(config),
+        }
+    }
+
+    pub async fn listen(&mut self) {
+        info!("Listening for Ping messages");
+
+        while let Some(msg) = self.channel.next().await {
+            match self.handle_message(msg).await {
+                Ok(_) => debug!("Successfully handled PING message"),
+                Err(e) => error!("Unable to handle PING message: {}", e),
+            }
+        }
+    }
+
+    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+        let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
+        let channel = format!(
+            "{}.{}",
+            Channel::PongPrefix.channel_to_string(&self.config),
+            &ping_message.sender
+        );
+
+        let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();
+
+        send!(self
+            .parent
+            .publish_to_channel(channel, self.config.serialize(pong_message)?));
+
+        Ok(())
     }
 }
 
