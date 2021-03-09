@@ -46,7 +46,7 @@ impl Info {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // TODO: send back info package
+        // TODO: save to registry
         Ok(())
     }
 }
@@ -89,7 +89,7 @@ impl InfoTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // TODO: send back info package
+        // TODO: save to registry
         Ok(())
     }
 }

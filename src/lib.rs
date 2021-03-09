@@ -11,6 +11,7 @@ use std::sync::Arc;
 use thiserror::Error;
 
 pub(crate) mod built_info {
+    #[allow(dead_code)]
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 

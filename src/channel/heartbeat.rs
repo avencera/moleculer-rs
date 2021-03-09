@@ -86,6 +86,7 @@ impl Heartbeat {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+        // TODO: handle and save to registry
         // let heartbeat_msg: HeartbeatMessageOwned = self.config.deserialize(&msg.data)?;
         // do nothing with incoming heartbeat messages for now
         Ok(())
