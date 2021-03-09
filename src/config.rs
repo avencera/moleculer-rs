@@ -130,7 +130,9 @@ impl Default for Config {
             ip_list: get_if_addrs::get_if_addrs()
                 .unwrap_or_default()
                 .iter()
-                .map(|interface| interface.addr.ip().to_string())
+                .map(|interface| interface.addr.ip())
+                .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
+                .map(|ip| ip.to_string())
                 .collect(),
         }
     }
