@@ -104,6 +104,7 @@ impl ChannelSupervisor {
             channels,
 
             pid: WeakAddr::detached(),
+
             event: Addr::detached(),
 
             request: Addr::detached(),
@@ -144,6 +145,11 @@ impl ChannelSupervisor {
 
         self.discover_targeted =
             spawn_actor(DiscoverTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
+
+        self.info = spawn_actor(Info::new(self.pid.clone(), &self.config, &self.conn).await);
+
+        self.info_targeted =
+            spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
         Produces::ok(())
     }

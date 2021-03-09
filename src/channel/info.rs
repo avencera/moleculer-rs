@@ -4,13 +4,27 @@ use crate::{
 };
 
 use super::{ChannelSupervisor, Error};
+use crate::channel::messages::outgoing;
 use act_zero::*;
 use async_nats::{Message, Subscription};
 use async_trait::async_trait;
 use log::{debug, error, info};
 use std::sync::Arc;
 
-impl Actor for Info {}
+#[async_trait]
+impl Actor for Info {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("Info Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
+    }
+}
 pub struct Info {
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
@@ -51,7 +65,20 @@ impl Info {
     }
 }
 
-impl Actor for InfoTargeted {}
+#[async_trait]
+impl Actor for InfoTargeted {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        send!(pid.listen());
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!("InfoTargeted Actor Error: {:?}", error);
+
+        // do not stop on actor error
+        false
+    }
+}
 pub struct InfoTargeted {
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
