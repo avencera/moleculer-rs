@@ -5,13 +5,17 @@ use std::collections::HashMap;
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
 pub type EventCallback = fn(Context) -> ();
 
+#[derive(Debug)]
 pub struct Action {
     name: String,
+    params: HashMap<String, String>,
     callback: ActionCallback,
 }
 
+#[derive(Debug)]
 pub struct Event {
     name: String,
+    params: HashMap<String, String>,
     callback: EventCallback,
 }
 
@@ -21,9 +25,9 @@ pub struct Service {
     name: String,
     version: Option<i32>,
     #[serde(skip)]
-    actions: HashMap<String, ActionCallback>,
+    actions: HashMap<String, Action>,
     #[serde(skip)]
-    events: HashMap<String, EventCallback>,
+    events: HashMap<String, Event>,
 }
 
 impl Service {
@@ -40,12 +44,12 @@ impl Service {
     }
 
     pub fn action(mut self, action: Action) -> Service {
-        self.actions.insert(action.name, action.callback);
+        self.actions.insert(action.name.clone(), action);
         self
     }
 
     pub fn event(mut self, event: Event) -> Service {
-        self.events.insert(event.name, event.callback);
+        self.events.insert(event.name.clone(), event);
         self
     }
 }

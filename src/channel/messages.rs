@@ -161,7 +161,7 @@ pub mod outgoing {
 
         #[serde(rename = "instanceID")]
         instance_id: &'a str,
-        services: Vec<Service>,
+        services: &'a Vec<Service>,
         ip_list: &'a Vec<String>,
         hostname: &'a str,
         client: Client,
@@ -177,7 +177,7 @@ pub mod outgoing {
                 sender: &config.node_id,
 
                 instance_id: &config.instance_id,
-                services: vec![],
+                services: &config.services,
                 ip_list: &config.ip_list,
                 hostname: &config.hostname,
                 client: Client::new(),
