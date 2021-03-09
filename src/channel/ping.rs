@@ -17,7 +17,8 @@ use std::sync::Arc;
 #[async_trait]
 impl Actor for Ping {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        send!(pid.listen());
+        let pid_clone = pid.clone();
+        send!(pid_clone.listen(pid));
         Produces::ok(())
     }
 
@@ -30,7 +31,7 @@ impl Actor for Ping {
 }
 pub struct Ping {
     config: Arc<Config>,
-    channel: Subscription,
+    conn: Conn,
     parent: WeakAddr<ChannelSupervisor>,
 }
 
@@ -42,26 +43,31 @@ impl Ping {
     ) -> Self {
         Self {
             parent,
-            channel: conn
-                .subscribe(&Channel::Ping.channel_to_string(&config))
-                .await
-                .unwrap(),
+            conn: conn.clone(),
             config: Arc::clone(config),
         }
     }
 
-    pub async fn listen(&mut self) {
+    pub async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PING messages");
 
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled PING message"),
-                Err(e) => error!("Unable to handle PING message: {}", e),
+        let channel = self
+            .conn
+            .subscribe(&Channel::Ping.channel_to_string(&self.config))
+            .await
+            .unwrap();
+
+        pid.clone().send_fut(async move {
+            while let Some(msg) = channel.next().await {
+                match call!(pid.handle_message(msg)).await {
+                    Ok(_) => debug!("Successfully handled PING message"),
+                    Err(e) => error!("Unable to handle PING message: {}", e),
+                }
             }
-        }
+        })
     }
 
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
         let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
         let channel = format!(
             "{}.{}",
@@ -75,14 +81,15 @@ impl Ping {
             .parent
             .publish_to_channel(channel, self.config.serialize(pong_message)?));
 
-        Ok(())
+        Produces::ok(Ok(()))
     }
 }
 
 #[async_trait]
 impl Actor for PingTargeted {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        send!(pid.listen());
+        let pid_clone = pid.clone();
+        send!(pid_clone.listen(pid));
         Produces::ok(())
     }
 
@@ -95,7 +102,7 @@ impl Actor for PingTargeted {
 }
 pub struct PingTargeted {
     config: Arc<Config>,
-    channel: Subscription,
+    conn: Conn,
     parent: WeakAddr<ChannelSupervisor>,
 }
 
@@ -107,26 +114,31 @@ impl PingTargeted {
     ) -> Self {
         Self {
             parent,
-            channel: conn
-                .subscribe(&Channel::PingTargeted.channel_to_string(&config))
-                .await
-                .unwrap(),
+            conn: conn.clone(),
             config: Arc::clone(config),
         }
     }
 
-    pub async fn listen(&mut self) {
+    pub async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PING (targeted) messages");
 
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled PING message"),
-                Err(e) => error!("Unable to handle PING message: {}", e),
+        let channel = self
+            .conn
+            .subscribe(&Channel::PingTargeted.channel_to_string(&self.config))
+            .await
+            .unwrap();
+
+        pid.clone().send_fut(async move {
+            while let Some(msg) = channel.next().await {
+                match call!(pid.handle_message(msg)).await {
+                    Ok(_) => debug!("Successfully handled PING message"),
+                    Err(e) => error!("Unable to handle PING message: {}", e),
+                }
             }
-        }
+        })
     }
 
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
         let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
         let channel = format!(
             "{}.{}",
@@ -140,6 +152,6 @@ impl PingTargeted {
             .parent
             .publish_to_channel(channel, self.config.serialize(pong_message)?));
 
-        Ok(())
+        Produces::ok(Ok(()))
     }
 }

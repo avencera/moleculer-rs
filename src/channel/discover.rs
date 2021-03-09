@@ -13,7 +13,8 @@ use std::sync::Arc;
 #[async_trait]
 impl Actor for Discover {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        send!(pid.listen());
+        let pid_clone = pid.clone();
+        send!(pid_clone.listen(pid));
         Produces::ok(())
     }
 
@@ -27,7 +28,7 @@ impl Actor for Discover {
 pub struct Discover {
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
-    channel: Subscription,
+    conn: Conn,
 }
 
 impl Discover {
@@ -38,26 +39,32 @@ impl Discover {
     ) -> Self {
         Self {
             parent,
-            channel: conn
-                .subscribe(&Channel::Discover.channel_to_string(&config))
-                .await
-                .unwrap(),
+            conn: conn.clone(),
             config: Arc::clone(config),
         }
     }
 
-    pub async fn listen(&mut self) {
+    pub async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCOVER messages");
+        let channel = self
+            .conn
+            .subscribe(&Channel::Discover.channel_to_string(&self.config))
+            .await
+            .unwrap();
 
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled DISCOVER message"),
-                Err(e) => error!("Unable to handle DISCOVER message: {}", e),
+        pid.clone().send_fut(async move {
+            while let Some(msg) = channel.next().await {
+                match call!(pid.handle_message(msg)).await {
+                    Ok(_) => debug!("Successfully handled DISCOVER message"),
+                    Err(e) => error!("Unable to handle DISCOVER message: {}", e),
+                }
             }
-        }
+        })
     }
 
     pub async fn broadcast(&self) {
+        println!("BROADCAST CALLED");
+
         let msg = outgoing::DiscoverMessage::new(&self.config.node_id);
         send!(self.parent.publish(
             Channel::Discover,
@@ -67,7 +74,7 @@ impl Discover {
         ));
     }
 
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
         let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
         let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
@@ -80,14 +87,15 @@ impl Discover {
             .parent
             .publish_to_channel(channel, self.config.serialize(info)?));
 
-        Ok(())
+        Produces::ok(Ok(()))
     }
 }
 
 #[async_trait]
 impl Actor for DiscoverTargeted {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        send!(pid.listen());
+        let pid_clone = pid.clone();
+        send!(pid_clone.listen(pid));
         send!(self.parent.broadcast_discover());
         Produces::ok(())
     }
@@ -104,7 +112,7 @@ impl Actor for DiscoverTargeted {
 pub struct DiscoverTargeted {
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
-    channel: Subscription,
+    conn: Conn,
 }
 
 impl DiscoverTargeted {
@@ -115,26 +123,30 @@ impl DiscoverTargeted {
     ) -> Self {
         Self {
             parent,
-            channel: conn
-                .subscribe(&Channel::DiscoverTargeted.channel_to_string(&config))
-                .await
-                .unwrap(),
+            conn: conn.clone(),
             config: Arc::clone(config),
         }
     }
 
-    pub async fn listen(&mut self) {
+    pub async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCOVER (targeted) messages");
+        let channel = self
+            .conn
+            .subscribe(&Channel::DiscoverTargeted.channel_to_string(&self.config))
+            .await
+            .unwrap();
 
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled DISCOVER (targeted) message"),
-                Err(e) => error!("Unable to handle DISCOVER (targeted) message: {}", e),
+        pid.clone().send_fut(async move {
+            while let Some(msg) = channel.next().await {
+                match call!(pid.handle_message(msg)).await {
+                    Ok(_) => debug!("Successfully handled DISCOVER (targeted)"),
+                    Err(e) => error!("Unable to handle DISCOVER (targeted): {}", e),
+                }
             }
-        }
+        })
     }
 
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
         let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
         let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
@@ -147,6 +159,6 @@ impl DiscoverTargeted {
             .parent
             .publish_to_channel(channel, self.config.serialize(info)?));
 
-        Ok(())
+        Produces::ok(Ok(()))
     }
 }

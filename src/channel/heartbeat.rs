@@ -17,7 +17,7 @@ use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 pub struct Heartbeat {
     config: Arc<Config>,
     timer: Timer,
-    channel: Subscription,
+    conn: Conn,
     parent: Addr<ChannelSupervisor>,
     heartbeat_interval: u32,
     system: sysinfo::System,
@@ -26,11 +26,14 @@ pub struct Heartbeat {
 #[async_trait]
 impl Actor for Heartbeat {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        send!(pid.listen());
+        let pid_clone = pid.clone();
+        send!(pid_clone.listen(pid));
 
         // Start the timer
-        self.timer
-            .set_timeout_for_strong(pid, Duration::from_secs(self.heartbeat_interval as u64));
+        self.timer.set_timeout_for_strong(
+            pid_clone,
+            Duration::from_secs(self.heartbeat_interval as u64),
+        );
 
         Produces::ok(())
     }
@@ -64,32 +67,37 @@ impl Heartbeat {
         Self {
             config: Arc::clone(config),
             parent: parent.upgrade(),
-            channel: conn
-                .subscribe(&Channel::Heartbeat.channel_to_string(&config))
-                .await
-                .unwrap(),
+            conn: conn.clone(),
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
             system: System::new_with_specifics(RefreshKind::new().with_cpu()),
         }
     }
 
-    pub async fn listen(&mut self) {
+    pub async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for HEARTBEAT messages");
 
-        while let Some(msg) = self.channel.next().await {
-            match self.handle_message(msg).await {
-                Ok(_) => debug!("Successfully handled HEARTBEAT message"),
-                Err(e) => error!("Unable to handle HEARTBEAT message: {}", e),
+        let channel = self
+            .conn
+            .subscribe(&Channel::Heartbeat.channel_to_string(&self.config))
+            .await
+            .unwrap();
+
+        pid.clone().send_fut(async move {
+            while let Some(msg) = channel.next().await {
+                match call!(pid.handle_message(msg)).await {
+                    Ok(_) => debug!("Successfully handled HEARTBEAT message"),
+                    Err(e) => error!("Unable to handle HEARTBEAT message: {}", e),
+                }
             }
-        }
+        })
     }
 
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+    async fn handle_message(&self, _msg: Message) -> ActorResult<Result<(), Error>> {
         // TODO: handle and save to registry
         // let heartbeat_msg: HeartbeatMessageOwned = self.config.deserialize(&msg.data)?;
         // do nothing with incoming heartbeat messages for now
-        Ok(())
+        Produces::ok(Ok(()))
     }
 
     async fn send_heartbeat(&self) -> ActorResult<()> {

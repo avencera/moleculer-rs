@@ -14,7 +14,8 @@ use std::sync::Arc;
 #[async_trait]
 impl Actor for Pong {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        send!(pid.listen());
+        let pid_clone = pid.clone();
+        send!(pid_clone.listen(pid));
         Produces::ok(())
     }
 
@@ -56,7 +57,7 @@ impl Pong {
         }
     }
 
-    pub async fn listen(&mut self) {
+    pub async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PONG messages");
 
         while let Some(msg) = self.channel.next().await {

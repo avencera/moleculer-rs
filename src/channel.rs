@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
     config,
-    config::{Channel, Config, Transporter},
+    config::{Channel, Config, Registry, Transporter},
     nats,
 };
 
@@ -153,8 +153,6 @@ impl ChannelSupervisor {
         self.info_targeted =
             spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
-        send!(self.info.broadcast_info());
-
         Produces::ok(())
     }
 
@@ -162,6 +160,10 @@ impl ChannelSupervisor {
     // should only broadcast discover message if listening for the return messages
     async fn broadcast_discover(&self) {
         send!(self.discover.broadcast());
+    }
+
+    async fn broadcast_info(&self) {
+        send!(self.info.broadcast());
     }
 
     async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
@@ -242,6 +244,8 @@ pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
     call!(registry.start_listeners())
         .await
         .map_err(|_| Error::UnableToStartListeners)?;
+
+    call!(registry.broadcast_info()).await;
 
     // detects SIGTERM and sends disconnect package
     let _ = ctrlc::set_handler(move || {
