@@ -67,7 +67,7 @@ impl Ping {
         })
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
         let channel = format!(
             "{}.{}",
@@ -81,7 +81,7 @@ impl Ping {
             .parent
             .publish_to_channel(channel, self.config.serialize(pong_message)?));
 
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }
 
@@ -138,7 +138,7 @@ impl PingTargeted {
         })
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let ping_message: PingMessage = self.config.deserialize(&msg.data)?;
         let channel = format!(
             "{}.{}",
@@ -152,6 +152,6 @@ impl PingTargeted {
             .parent
             .publish_to_channel(channel, self.config.serialize(pong_message)?));
 
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }

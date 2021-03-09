@@ -74,9 +74,9 @@ impl Info {
         Produces::ok(())
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         // TODO: save to registry
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }
 
@@ -136,8 +136,8 @@ impl InfoTargeted {
         })
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         // TODO: save to registry
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }

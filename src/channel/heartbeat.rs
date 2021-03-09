@@ -93,11 +93,11 @@ impl Heartbeat {
         })
     }
 
-    async fn handle_message(&self, _msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, _msg: Message) -> ActorResult<()> {
         // TODO: handle and save to registry
         // let heartbeat_msg: HeartbeatMessageOwned = self.config.deserialize(&msg.data)?;
         // do nothing with incoming heartbeat messages for now
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 
     async fn send_heartbeat(&self) -> ActorResult<()> {

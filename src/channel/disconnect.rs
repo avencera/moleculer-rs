@@ -63,9 +63,9 @@ impl Disconnect {
         })
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         // let disconnect_msg: DisconnectMessageOwned = self.config.deserialize(&msg.data)?;
         // do nothing with incoming disconnect messages for now
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }

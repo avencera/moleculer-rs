@@ -72,7 +72,7 @@ impl Discover {
         ));
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
         let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
@@ -85,7 +85,7 @@ impl Discover {
             .parent
             .publish_to_channel(channel, self.config.serialize(info)?));
 
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }
 
@@ -143,7 +143,7 @@ impl DiscoverTargeted {
         })
     }
 
-    async fn handle_message(&self, msg: Message) -> ActorResult<Result<(), Error>> {
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
         let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
@@ -156,6 +156,6 @@ impl DiscoverTargeted {
             .parent
             .publish_to_channel(channel, self.config.serialize(info)?));
 
-        Produces::ok(Ok(()))
+        Produces::ok(())
     }
 }
