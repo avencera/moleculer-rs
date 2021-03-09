@@ -151,6 +151,8 @@ impl ChannelSupervisor {
         self.info_targeted =
             spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
+        send!(self.info.broadcast_info());
+
         Produces::ok(())
     }
 

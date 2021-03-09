@@ -59,6 +59,16 @@ impl Info {
         }
     }
 
+    pub async fn broadcast_info(&self) -> ActorResult<()> {
+        let info = outgoing::InfoMessage::new(&self.config);
+
+        send!(self
+            .parent
+            .publish(Channel::Info, self.config.serialize(info)?));
+
+        Produces::ok(())
+    }
+
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
         // TODO: save to registry
         Ok(())
