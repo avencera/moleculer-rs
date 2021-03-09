@@ -15,6 +15,7 @@ use std::{sync::Arc, time::Duration};
 use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 
 pub struct Heartbeat {
+    pid: Addr<Self>,
     config: Arc<Config>,
     timer: Timer,
     conn: Conn,
@@ -31,9 +32,11 @@ impl Actor for Heartbeat {
 
         // Start the timer
         self.timer.set_timeout_for_strong(
-            pid_clone,
+            pid_clone.clone(),
             Duration::from_secs(self.heartbeat_interval as u64),
         );
+
+        self.pid = pid_clone;
 
         Produces::ok(())
     }
@@ -52,6 +55,10 @@ impl Tick for Heartbeat {
         self.system.refresh_cpu();
 
         if self.timer.tick() {
+            self.timer.set_timeout_for_strong(
+                self.pid.clone(),
+                Duration::from_secs(self.heartbeat_interval as u64),
+            );
             let _ = self.send_heartbeat().await;
         }
         Produces::ok(())
@@ -65,6 +72,7 @@ impl Heartbeat {
         conn: &Conn,
     ) -> Self {
         Self {
+            pid: Addr::detached(),
             config: Arc::clone(config),
             parent: parent.upgrade(),
             conn: conn.clone(),
