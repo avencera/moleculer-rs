@@ -1,16 +1,24 @@
-use moleculer_rs::config::{Config, Transporter};
+use moleculer_rs::{
+    config::{ConfigBuilder, Transporter},
+    service::Service,
+};
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     env_logger::init();
     color_eyre::install()?;
 
-    let config = Config {
+    let config = ConfigBuilder {
         transporter: Transporter::Nats("nats://localhost:4222".to_string()),
-        ..Config::default()
-    };
+        ..ConfigBuilder::default()
+    }
+    .build();
 
-    moleculer_rs::start(config).await?;
+    let greeter_service = Service::new("greeter");
+
+    let services = vec![greeter_service];
+
+    moleculer_rs::start(config, services).await?;
 
     Ok(())
 }

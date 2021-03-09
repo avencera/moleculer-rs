@@ -6,6 +6,99 @@ use strum::{EnumIter, IntoEnumIterator};
 use thiserror::Error;
 use uuid::Uuid;
 
+#[derive(Debug)]
+pub struct ConfigBuilder {
+    pub namespace: String,
+    pub node_id: String,
+    pub logger: Logger,
+    pub log_level: log::Level,
+    pub transporter: Transporter,
+    pub request_timeout: i32,
+    pub retry_policy: RetryPolicy,
+    pub context_params_cloning: bool,
+    pub dependency_internal: u32,
+    pub max_call_level: u32,
+    pub heartbeat_interval: u32,
+    pub heartbeat_timeout: u32,
+    pub tracking: Tracking,
+    pub disable_balancer: bool,
+    pub registry: Registry,
+    pub circuit_breaker: CircuitBreaker,
+    pub bulkhead: Bulkhead,
+    pub transit: Transit,
+    pub serializer: Serializer,
+    pub meta_data: HashMap<String, String>,
+}
+
+impl ConfigBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn build(self) -> Config {
+        Config {
+            namespace: self.namespace,
+            node_id: self.node_id,
+            logger: self.logger,
+            log_level: self.log_level,
+            transporter: self.transporter,
+            request_timeout: self.request_timeout,
+            retry_policy: self.retry_policy,
+            context_params_cloning: self.context_params_cloning,
+            dependency_internal: self.dependency_internal,
+            max_call_level: self.max_call_level,
+            heartbeat_interval: self.heartbeat_interval,
+            heartbeat_timeout: self.heartbeat_timeout,
+            tracking: self.tracking,
+            disable_balancer: self.disable_balancer,
+            registry: self.registry,
+            circuit_breaker: self.circuit_breaker,
+            bulkhead: self.bulkhead,
+            transit: self.transit,
+            serializer: self.serializer,
+            meta_data: self.meta_data,
+
+            hostname: util::hostname().into_owned(),
+            instance_id: Uuid::new_v4().to_string(),
+            ip_list: get_if_addrs::get_if_addrs()
+                .unwrap_or_default()
+                .iter()
+                .map(|interface| interface.addr.ip())
+                .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
+                .map(|ip| ip.to_string())
+                .collect(),
+            services: vec![],
+        }
+    }
+}
+
+impl Default for ConfigBuilder {
+    fn default() -> Self {
+        Self {
+            namespace: "".to_string(),
+            node_id: util::gen_node_id(),
+            logger: Logger::Console,
+            log_level: log::Level::Info,
+            transporter: Transporter::Nats("nats://localhost:4222".to_string()),
+            request_timeout: 0,
+            retry_policy: RetryPolicy::default(),
+            context_params_cloning: false,
+            dependency_internal: 1000,
+            max_call_level: 0,
+            heartbeat_interval: 5,
+            heartbeat_timeout: 15,
+            tracking: Tracking::default(),
+            disable_balancer: false,
+            registry: Registry::Local,
+            circuit_breaker: CircuitBreaker::default(),
+            bulkhead: Bulkhead::default(),
+            transit: Transit::default(),
+            serializer: Serializer::JSON,
+            meta_data: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
@@ -100,44 +193,6 @@ pub struct Transit {
     disable_reconnect: bool,
     disable_version_check: bool,
     packet_log_filter: Vec<String>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            namespace: "".to_string(),
-            node_id: util::gen_node_id(),
-            logger: Logger::Console,
-            log_level: log::Level::Info,
-            transporter: Transporter::Nats("nats://localhost:4222".to_string()),
-            request_timeout: 0,
-            retry_policy: RetryPolicy::default(),
-            context_params_cloning: false,
-            dependency_internal: 1000,
-            max_call_level: 0,
-            heartbeat_interval: 5,
-            heartbeat_timeout: 15,
-            tracking: Tracking::default(),
-            disable_balancer: false,
-            registry: Registry::Local,
-            circuit_breaker: CircuitBreaker::default(),
-            bulkhead: Bulkhead::default(),
-            transit: Transit::default(),
-            serializer: Serializer::JSON,
-            meta_data: HashMap::new(),
-
-            hostname: util::hostname().into_owned(),
-            instance_id: Uuid::new_v4().to_string(),
-            ip_list: get_if_addrs::get_if_addrs()
-                .unwrap_or_default()
-                .iter()
-                .map(|interface| interface.addr.ip())
-                .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
-                .map(|ip| ip.to_string())
-                .collect(),
-            services: vec![],
-        }
-    }
 }
 
 impl Default for RetryPolicy {

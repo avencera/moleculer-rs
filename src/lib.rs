@@ -1,7 +1,7 @@
 mod util;
 
 pub mod config;
-mod service;
+pub mod service;
 
 mod channel;
 mod nats;
