@@ -1,6 +1,6 @@
 mod util;
 
-mod config;
+pub mod config;
 mod service;
 
 mod channel;
@@ -21,8 +21,8 @@ pub enum Error {
     ChannelError(#[from] channel::Error),
 }
 
-pub async fn start() -> Result<(), Error> {
-    channel::subscribe_to_channels(Arc::new(config::Config::default()))
+pub async fn start(config: config::Config) -> Result<(), Error> {
+    channel::subscribe_to_channels(Arc::new(config))
         .await
         .map_err(Error::ChannelError)
 }

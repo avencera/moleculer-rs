@@ -116,7 +116,7 @@ impl PingTargeted {
     }
 
     pub async fn listen(&mut self) {
-        info!("Listening for Ping messages");
+        info!("Listening for PING (targeted) messages");
 
         while let Some(msg) = self.channel.next().await {
             match self.handle_message(msg).await {

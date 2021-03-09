@@ -7,8 +7,8 @@ mod info;
 mod ping;
 mod pong;
 
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::{collections::HashMap, process::exit};
 
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
@@ -237,7 +237,10 @@ pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
         .map_err(|_| Error::UnableToStartListeners)?;
 
     // detects SIGTERM and sends disconnect package
-    let _ = ctrlc::set_handler(move || send!(registry_clone.send_disconnect()));
+    let _ = ctrlc::set_handler(move || {
+        send!(registry_clone.send_disconnect());
+        exit(1)
+    });
 
     registry.termination().await;
 
