@@ -14,7 +14,7 @@ async fn main() -> eyre::Result<()> {
     }
     .build();
 
-    let greeter_service = Service::new("greeter");
+    let greeter_service = Service::new("rustGreeter");
 
     let services = vec![greeter_service];
 
