@@ -3,7 +3,16 @@ pub mod incoming {
 
     use serde::Deserialize;
 
-    use crate::{config::Client, service::Service};
+    use crate::service::Service;
+
+    #[derive(Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Client {
+        #[serde(rename = "type")]
+        type_: String,
+        version: String,
+        lang_version: String,
+    }
 
     #[derive(Deserialize)]
     pub struct PingMessage {
@@ -43,15 +52,39 @@ pub mod incoming {
         config: HashMap<String, String>,
         metadata: HashMap<String, String>,
     }
+
+    #[derive(Deserialize)]
+    pub struct DiscoverMessage {
+        pub ver: String,
+        pub sender: String,
+    }
 }
 
 pub mod outgoing {
     use std::{collections::HashMap, time::SystemTime};
 
-    use crate::{config::Client, service::Service};
-
     use super::incoming::PingMessage;
+    use crate::{built_info, config::Config, service::Service};
     use serde::Serialize;
+
+    #[derive(Serialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Client {
+        #[serde(rename = "type")]
+        type_: &'static str,
+        version: &'static str,
+        lang_version: &'static str,
+    }
+
+    impl Client {
+        fn new() -> Self {
+            Self {
+                type_: "rust",
+                version: env!("CARGO_PKG_VERSION"),
+                lang_version: built_info::RUSTC_VERSION,
+            }
+        }
+    }
 
     #[derive(Serialize)]
     pub struct PongMessage<'a> {
@@ -126,15 +159,32 @@ pub mod outgoing {
         ver: &'static str,
         sender: &'a str,
 
+        #[serde(rename = "instanceID")]
+        instance_id: &'a str,
         services: Vec<Service>,
         ip_list: &'a Vec<String>,
         hostname: &'a str,
-        client: &'a Client,
-
-        #[serde(rename = "instanceID")]
-        instance_id: &'a str,
+        client: Client,
 
         config: HashMap<String, String>,
         metadata: HashMap<String, String>,
+    }
+
+    impl<'a> InfoMessage<'a> {
+        pub fn new(config: &'a Config) -> Self {
+            Self {
+                ver: "4",
+                sender: &config.node_id,
+
+                instance_id: &config.instance_id,
+                services: vec![],
+                ip_list: &config.ip_list,
+                hostname: &config.hostname,
+                client: Client::new(),
+
+                config: HashMap::new(),
+                metadata: HashMap::new(),
+            }
+        }
     }
 }

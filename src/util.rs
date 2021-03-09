@@ -13,11 +13,9 @@ fn random_string_iter(take: usize) -> impl Iterator<Item = char> {
 pub fn gen_node_id() -> String {
     let random_string_length = 6;
 
-    let hostname = hostname::get()
-        .map(|s| Cow::Owned(s.to_string_lossy().to_string()))
-        .unwrap_or_else(|_| Cow::Borrowed("unknown_host_name"));
-
     let pid = std::process::id().to_string();
+
+    let hostname = hostname();
 
     let mut node_id =
         String::with_capacity("rust-".len() + hostname.len() + pid.len() + random_string_length);
@@ -31,4 +29,10 @@ pub fn gen_node_id() -> String {
     random_string_iter(random_string_length).for_each(|char| node_id.push(char));
 
     node_id
+}
+
+pub fn hostname() -> Cow<'static, str> {
+    hostname::get()
+        .map(|s| Cow::Owned(s.to_string_lossy().to_string()))
+        .unwrap_or_else(|_| Cow::Borrowed("unknown_host_name"))
 }

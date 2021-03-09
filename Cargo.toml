@@ -1,10 +1,10 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 authors = ["Praveen Perera <praveen@primcloud.com>"]
+build = "build.rs"
 edition = "2018"
 name = "moleculer-rs"
 version = "0.1.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # async
@@ -32,9 +32,14 @@ log = {version = "0.4", features = ["serde"]}
 rand = "0.8"
 
 # node information
+get_if_addrs = "0.5.3"
 hostname = "0.3"
 sysinfo = "0.16"
 
 # utils
 ctrlc = {version = "3.0", features = ["termination"]}
 strum = {version = "0.20", features = ["derive"]}
+uuid = {version = "0.8", features = ["serde", "v4"]}
+
+[build-dependencies]
+built = "0.4"

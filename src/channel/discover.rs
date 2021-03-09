@@ -3,7 +3,7 @@ use crate::{
     nats::Conn,
 };
 
-use super::{messages::outgoing::DiscoverMessage, ChannelSupervisor, Error};
+use super::{messages::incoming, messages::outgoing, ChannelSupervisor, Error};
 use act_zero::*;
 use async_nats::{Message, Subscription};
 use async_trait::async_trait;
@@ -58,7 +58,7 @@ impl Discover {
     }
 
     pub async fn broadcast(&self) {
-        let msg = DiscoverMessage::new(&self.config.node_id);
+        let msg = outgoing::DiscoverMessage::new(&self.config.node_id);
         send!(self.parent.publish(
             Channel::Discover,
             self.config
@@ -68,7 +68,18 @@ impl Discover {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // TODO: send back INFO packet
+        let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
+        let info = outgoing::InfoMessage::new(&self.config);
+        let channel = format!(
+            "{}.{}",
+            Channel::Info.channel_to_string(&self.config),
+            discover.sender
+        );
+
+        send!(self
+            .parent
+            .publish_to_channel(channel, self.config.serialize(info)?));
+
         Ok(())
     }
 }
@@ -124,7 +135,18 @@ impl DiscoverTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // TODO: send back INFO packet
+        let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
+        let info = outgoing::InfoMessage::new(&self.config);
+        let channel = format!(
+            "{}.{}",
+            Channel::Info.channel_to_string(&self.config),
+            discover.sender
+        );
+
+        send!(self
+            .parent
+            .publish_to_channel(channel, self.config.serialize(info)?));
+
         Ok(())
     }
 }

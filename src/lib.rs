@@ -10,6 +10,10 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
+pub(crate) mod built_info {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(transparent)]

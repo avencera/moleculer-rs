@@ -9,7 +9,7 @@ use async_nats::{Message, Subscription};
 use async_trait::async_trait;
 use log::{debug, error, info};
 use serde::Deserialize;
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 #[async_trait]
 impl Actor for Pong {

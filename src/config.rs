@@ -4,8 +4,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use strum::{EnumIter, IntoEnumIterator};
 use thiserror::Error;
+use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     pub namespace: String,
@@ -33,7 +34,6 @@ pub struct Config {
     pub ip_list: Vec<String>,
     pub hostname: String,
     pub instance_id: String,
-    pub client: Client,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -124,6 +124,14 @@ impl Default for Config {
             transit: Transit::default(),
             serializer: Serializer::JSON,
             meta_data: HashMap::new(),
+
+            hostname: util::hostname().into_owned(),
+            instance_id: Uuid::new_v4().to_string(),
+            ip_list: get_if_addrs::get_if_addrs()
+                .unwrap_or_default()
+                .iter()
+                .map(|interface| interface.addr.ip().to_string())
+                .collect(),
         }
     }
 }
@@ -258,13 +266,4 @@ fn mol(config: &Config) -> Cow<str> {
     } else {
         Cow::Owned(format!("MOL-{}", &config.namespace))
     }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Client {
-    #[serde(rename = "type")]
-    type_: String,
-    version: String,
-    lang_version: String,
 }
