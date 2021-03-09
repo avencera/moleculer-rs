@@ -245,7 +245,8 @@ pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
         .await
         .map_err(|_| Error::UnableToStartListeners)?;
 
-    call!(registry.broadcast_info()).await;
+    send!(registry.broadcast_info());
+    send!(registry.broadcast_discover());
 
     // detects SIGTERM and sends disconnect package
     let _ = ctrlc::set_handler(move || {

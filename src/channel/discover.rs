@@ -63,8 +63,6 @@ impl Discover {
     }
 
     pub async fn broadcast(&self) {
-        println!("BROADCAST CALLED");
-
         let msg = outgoing::DiscoverMessage::new(&self.config.node_id);
         send!(self.parent.publish(
             Channel::Discover,
@@ -96,7 +94,6 @@ impl Actor for DiscoverTargeted {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
         let pid_clone = pid.clone();
         send!(pid_clone.listen(pid));
-        send!(self.parent.broadcast_discover());
         Produces::ok(())
     }
 
