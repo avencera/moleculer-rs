@@ -17,7 +17,7 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-struct Service {
+pub struct Service {
     name: String,
     version: Option<i32>,
     #[serde(skip)]

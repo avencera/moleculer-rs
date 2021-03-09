@@ -1,15 +1,29 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 authors = ["Praveen Perera <praveen@primcloud.com>"]
+build = "build.rs"
 edition = "2018"
 name = "moleculer-rs"
 version = "0.1.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+# async
+async-trait = "0.1"
+tokio = {version = "1.2", features = ["rt-multi-thread"]}
+
+# actor framework
+act-zero = {version = "0.4", features = ["default-tokio"]}
+
+# nats
+async-nats = "0.9"
+
+# error handling
+thiserror = "1.0"
+
 # serde
 bytes = {version = "1.0", features = ["serde"]}
 serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
 
 # logging
 log = {version = "0.4", features = ["serde"]}
@@ -17,5 +31,22 @@ log = {version = "0.4", features = ["serde"]}
 # random
 rand = "0.8"
 
-# host info
+# node information
+get_if_addrs = "0.5.3"
 hostname = "0.3"
+sysinfo = "0.16"
+
+# utils
+ctrlc = {version = "3.0", features = ["termination"]}
+strum = {version = "0.20", features = ["derive"]}
+uuid = {version = "0.8", features = ["serde", "v4"]}
+
+[build-dependencies]
+built = "0.4"
+
+# for examples
+[dev-dependencies]
+color-eyre = "0.5"
+env_logger = "0.8"
+eyre = "0.6"
+tokio = {version = "1.1", features = ["rt-multi-thread", "macros"]}

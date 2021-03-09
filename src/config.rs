@@ -1,32 +1,39 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
 use crate::util;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use strum::{EnumIter, IntoEnumIterator};
+use thiserror::Error;
+use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
-    namespace: String,
+    pub namespace: String,
     #[serde(rename = "nodeID")]
-    node_id: String,
-    logger: Logger,
-    log_level: log::Level,
-    transporter: Transporter,
-    request_timeout: i32,
-    retry_policy: RetryPolicy,
-    context_params_cloning: bool,
-    dependency_internal: u32,
-    max_call_level: u32,
-    heartbeat_interval: u32,
-    heartbeat_timeout: u32,
-    tracking: Tracking,
-    disable_balancer: bool,
-    registry: Registry,
-    circuit_breaker: CircuitBreaker,
-    bulkhead: Bulkhead,
-    transit: Transit,
-    serializer: Serializer,
-    meta_data: HashMap<String, String>,
+    pub node_id: String,
+    pub logger: Logger,
+    pub log_level: log::Level,
+    pub transporter: Transporter,
+    pub request_timeout: i32,
+    pub retry_policy: RetryPolicy,
+    pub context_params_cloning: bool,
+    pub dependency_internal: u32,
+    pub max_call_level: u32,
+    pub heartbeat_interval: u32,
+    pub heartbeat_timeout: u32,
+    pub tracking: Tracking,
+    pub disable_balancer: bool,
+    pub registry: Registry,
+    pub circuit_breaker: CircuitBreaker,
+    pub bulkhead: Bulkhead,
+    pub transit: Transit,
+    pub serializer: Serializer,
+    pub meta_data: HashMap<String, String>,
+
+    pub ip_list: Vec<String>,
+    pub hostname: String,
+    pub instance_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -117,6 +124,16 @@ impl Default for Config {
             transit: Transit::default(),
             serializer: Serializer::JSON,
             meta_data: HashMap::new(),
+
+            hostname: util::hostname().into_owned(),
+            instance_id: Uuid::new_v4().to_string(),
+            ip_list: get_if_addrs::get_if_addrs()
+                .unwrap_or_default()
+                .iter()
+                .map(|interface| interface.addr.ip())
+                .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
+                .map(|ip| ip.to_string())
+                .collect(),
         }
     }
 }
@@ -173,5 +190,82 @@ impl Default for Transit {
             disable_version_check: false,
             packet_log_filter: vec![],
         }
+    }
+}
+
+#[derive(EnumIter, Debug, PartialEq, Hash, Eq, Clone)]
+pub enum Channel {
+    Event,
+    Request,
+    Response,
+    Discover,
+    DiscoverTargeted,
+    Info,
+    InfoTargeted,
+    Heartbeat,
+    Ping,
+    PongPrefix,
+    Pong,
+    PingTargeted,
+    Disconnect,
+}
+
+impl Channel {
+    pub fn build_hashmap(config: &Config) -> HashMap<Channel, String> {
+        Channel::iter()
+            .map(|channel| (channel.clone(), channel.channel_to_string(config)))
+            .collect()
+    }
+
+    pub fn channel_to_string(&self, config: &Config) -> String {
+        match self {
+            Channel::Event => format!("{}.EVENT.{}", mol(&config), &config.node_id),
+            Channel::Request => format!("{}.REQ.{}", mol(&config), &config.node_id),
+            Channel::Response => format!("{}.RES.{}", mol(&config), &config.node_id),
+            Channel::Discover => format!("{}.DISCOVER", mol(&config)),
+            Channel::DiscoverTargeted => format!("{}.DISCOVER.{}", mol(&config), &config.node_id),
+            Channel::Info => format!("{}.INFO", mol(&config)),
+            Channel::InfoTargeted => format!("{}.INFO.{}", mol(&config), &config.node_id),
+            Channel::Heartbeat => format!("{}.HEARTBEAT", mol(&config)),
+            Channel::Ping => format!("{}.PING", mol(&config)),
+            Channel::PingTargeted => format!("{}.PING.{}", mol(&config), &config.node_id),
+            Channel::PongPrefix => format!("{}.PONG", mol(&config)),
+            Channel::Pong => format!("{}.PONG.{}", mol(&config), &config.node_id),
+            Channel::Disconnect => format!("{}.DISCONNECT", mol(&config)),
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum SerializeError {
+    #[error("Unable to serialize to json: {0}")]
+    JSON(serde_json::error::Error),
+}
+
+#[derive(Error, Debug)]
+pub enum DeserializeError {
+    #[error("Unable to deserialize from json: {0}")]
+    JSON(serde_json::error::Error),
+}
+
+impl Config {
+    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
+        match self.serializer {
+            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
+        }
+    }
+
+    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
+        match self.serializer {
+            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
+        }
+    }
+}
+
+fn mol(config: &Config) -> Cow<str> {
+    if config.namespace.is_empty() {
+        Cow::Borrowed("MOL")
+    } else {
+        Cow::Owned(format!("MOL-{}", &config.namespace))
     }
 }
