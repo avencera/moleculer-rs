@@ -7,14 +7,16 @@ mod info;
 mod ping;
 mod pong;
 
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::{collections::HashMap, process::exit};
 
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_trait::async_trait;
-use log::error;
+use log::{debug, error};
 use thiserror::Error;
+
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
     config,
@@ -169,7 +171,7 @@ impl ChannelSupervisor {
         let res = self.conn.send(channel.as_ref(), message).await;
 
         if let Err(err) = res {
-            error!("Unable to send heartbeat: {}", err)
+            error!("Unable to send message: {}", err)
         }
 
         Produces::ok(())
@@ -181,7 +183,9 @@ impl ChannelSupervisor {
             .get(&channel)
             .expect("should always find channel");
 
-        let _ = self.publish_to_channel(channel.as_str(), message);
+        let _ = self.publish_to_channel(channel.as_str(), message).await;
+
+        debug!("Message published to channel: {}", channel);
 
         Produces::ok(())
     }
@@ -189,8 +193,11 @@ impl ChannelSupervisor {
     async fn send_disconnect(&self) -> ActorResult<()> {
         let msg = DisconnectMessage::new(&self.config.node_id);
 
-        let _ = self.publish(Channel::Disconnect, self.config.serialize(msg)?);
+        let _ = self
+            .publish(Channel::Disconnect, self.config.serialize(msg)?)
+            .await;
 
+        debug!("Disconnect message sent");
         Produces::ok(())
     }
 }
@@ -239,7 +246,9 @@ pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
     // detects SIGTERM and sends disconnect package
     let _ = ctrlc::set_handler(move || {
         send!(registry_clone.send_disconnect());
-        exit(1)
+        println!("Exiting molecular....");
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::process::exit(1);
     });
 
     registry.termination().await;
