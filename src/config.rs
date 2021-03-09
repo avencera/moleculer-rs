@@ -140,6 +140,12 @@ pub enum Transporter {
     Nats(String),
 }
 
+impl Transporter {
+    pub fn nats<S: Into<String>>(nats_address: S) -> Self {
+        Self::Nats(nats_address.into())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RetryPolicy {

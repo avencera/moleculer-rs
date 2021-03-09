@@ -13,12 +13,46 @@ pub struct Action {
     callback: Option<ActionCallback>,
 }
 
+#[derive(Default, Debug)]
+pub struct EventBuilder {
+    name: String,
+    params: HashMap<String, String>,
+    callback: Option<EventCallback>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Event {
     name: String,
     params: HashMap<String, String>,
     #[serde(skip)]
     callback: Option<EventCallback>,
+}
+
+impl EventBuilder {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self {
+            name: name.into(),
+            ..Self::default()
+        }
+    }
+
+    pub fn add_params(mut self, params: HashMap<String, String>) -> Self {
+        self.params = params;
+        self
+    }
+
+    pub fn add_callback(mut self, callback: EventCallback) -> Self {
+        self.callback = Some(callback);
+        self
+    }
+
+    pub fn build(self) -> Event {
+        Event {
+            name: self.name,
+            params: self.params,
+            callback: self.callback,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -42,17 +76,17 @@ impl Service {
         }
     }
 
-    pub fn version(mut self, version: i32) -> Service {
+    pub fn set_version(mut self, version: i32) -> Service {
         self.version = Some(version);
         self
     }
 
-    pub fn action(mut self, action: Action) -> Service {
+    pub fn add_action(mut self, action: Action) -> Service {
         self.actions.insert(action.name.clone(), action);
         self
     }
 
-    pub fn event(mut self, event: Event) -> Service {
+    pub fn add_event(mut self, event: Event) -> Service {
         self.events.insert(event.name.clone(), event);
         self
     }
