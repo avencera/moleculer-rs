@@ -1,7 +1,10 @@
+use std::error::Error;
+
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
     service::{EventBuilder, EventContext, Service},
 };
+use serde::Deserialize;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -33,12 +36,20 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn print_hi(ctx: EventContext) {
-    println!("printHi CTX: {:#?}", ctx);
-    println!("PRINTING HI FROM RUST")
+fn print_hi(_ctx: EventContext) -> Result<(), Box<dyn Error>> {
+    println!("Hello from Rust");
+    Ok(())
 }
 
-fn print_name(ctx: EventContext) {
-    println!("printName CTX: {:#?}", ctx);
-    println!("PRINTING NAME FROM RUST")
+fn print_name(ctx: EventContext) -> Result<(), Box<dyn Error>> {
+    let name: Name = serde_json::from_value(ctx.data)?;
+
+    println!("Hello to: {} from Rust", name.name);
+
+    Ok(())
+}
+
+#[derive(Deserialize)]
+struct Name {
+    name: String,
 }

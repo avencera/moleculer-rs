@@ -1,13 +1,13 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error};
 
 use crate::channel::messages::incoming::EventMessage;
 
 pub type EventContext = EventMessage;
 
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
-pub type EventCallback = fn(EventContext) -> ();
+pub type EventCallback = fn(EventContext) -> Result<(), Box<dyn Error>>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Action {

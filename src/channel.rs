@@ -18,11 +18,9 @@ use async_trait::async_trait;
 use log::{debug, error};
 use thiserror::Error;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use crate::{
     config,
-    config::{Channel, Config, Registry, Transporter},
+    config::{Channel, Config, Transporter},
     nats,
 };
 
