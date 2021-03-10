@@ -6,10 +6,14 @@ pub mod service;
 mod channel;
 mod nats;
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
+use act_zero::runtimes::tokio::spawn_actor;
+use act_zero::*;
+use async_trait::async_trait;
+use channel::ChannelSupervisor;
 use config::Serializer;
-use service::Service;
+use service::{Event, Service};
 use thiserror::Error;
 
 pub(crate) mod built_info {
@@ -23,15 +27,63 @@ pub enum Error {
     ChannelError(#[from] channel::Error),
 }
 
-pub async fn start(config: config::Config, services: Vec<Service>) -> Result<(), Error> {
-    let config = config.add_services(services);
+pub struct ServiceBroker {
+    pub namespace: String,
+    pub node_id: String,
+    pub instance_id: String,
+    pub services: Vec<Service>,
+    pub events: HashMap<String, Event>,
 
-    channel::subscribe_to_channels(Arc::new(config))
-        .await
-        .map_err(Error::ChannelError)
+    pid: Addr<Self>,
+    channel_supervisor: Addr<ChannelSupervisor>,
+    config: Arc<config::Config>,
 }
 
-pub struct Broker {
-    node_id: String,
-    serializer: Serializer,
+#[async_trait]
+impl Actor for ServiceBroker {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        self.pid = pid.clone();
+
+        let channel_supervisor = channel::start_supervisor(pid, Arc::clone(&self.config))
+            .await
+            .map_err(Error::ChannelError)?;
+
+        self.channel_supervisor = channel_supervisor.clone();
+
+        self.pid
+            .send_fut(async move { channel::listen_for_disconnect(channel_supervisor).await });
+
+        Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        log::error!("ServiceBroker Actor Error: {:?}", error);
+        // do not stop on actor error
+        false
+    }
+}
+impl ServiceBroker {
+    pub fn new(config: config::Config, services: Vec<Service>) -> Self {
+        let events = services
+            .iter()
+            .flat_map(|service| service.events.clone())
+            .collect();
+
+        Self {
+            namespace: config.namespace.clone(),
+            node_id: config.node_id.clone(),
+            instance_id: config.instance_id.clone(),
+            services,
+            events,
+
+            pid: Addr::detached(),
+            channel_supervisor: Addr::detached(),
+            config: Arc::new(config),
+        }
+    }
+
+    pub async fn start(self) {
+        let addr = spawn_actor(self);
+        addr.termination().await;
+    }
 }

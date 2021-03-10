@@ -3,6 +3,7 @@ use std::error::Error;
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
     service::{EventBuilder, EventContext, Service},
+    ServiceBroker,
 };
 use serde::Deserialize;
 
@@ -31,7 +32,8 @@ async fn main() -> eyre::Result<()> {
 
     let services = vec![greeter_service];
 
-    moleculer_rs::start(config, services).await?;
+    let service_broker = ServiceBroker::new(config, services);
+    service_broker.start().await;
 
     Ok(())
 }

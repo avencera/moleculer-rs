@@ -21,7 +21,7 @@ use thiserror::Error;
 use crate::{
     config,
     config::{Channel, Config, Transporter},
-    nats,
+    nats, ServiceBroker,
 };
 
 use self::{
@@ -65,6 +65,8 @@ impl Actor for ChannelSupervisor {
 }
 
 pub struct ChannelSupervisor {
+    broker: Addr<ServiceBroker>,
+
     conn: nats::Conn,
     config: Arc<Config>,
     pid: WeakAddr<Self>,
@@ -92,7 +94,7 @@ pub struct ChannelSupervisor {
 }
 
 impl ChannelSupervisor {
-    async fn new(config: Arc<Config>) -> Self {
+    async fn new(broker: Addr<ServiceBroker>, config: Arc<Config>) -> Self {
         let channels = Channel::build_hashmap(&config);
 
         let conn = match &config.transporter {
@@ -102,6 +104,7 @@ impl ChannelSupervisor {
         };
 
         Self {
+            broker,
             conn,
             config,
             channels,
@@ -229,26 +232,28 @@ impl Response {
     }
 }
 
-pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
-    let registry = spawn_actor(ChannelSupervisor::new(config).await);
-    let registry_clone = registry.clone();
+pub async fn start_supervisor(
+    broker: Addr<ServiceBroker>,
+    config: Arc<Config>,
+) -> Result<Addr<ChannelSupervisor>, Error> {
+    let channel_supervisor = spawn_actor(ChannelSupervisor::new(broker, config).await);
 
-    call!(registry.start_listeners())
+    call!(channel_supervisor.start_listeners())
         .await
         .map_err(|_| Error::UnableToStartListeners)?;
 
-    send!(registry.broadcast_info());
-    send!(registry.broadcast_discover());
+    send!(channel_supervisor.broadcast_info());
+    send!(channel_supervisor.broadcast_discover());
 
+    Ok(channel_supervisor)
+}
+
+pub async fn listen_for_disconnect(supervisor: Addr<ChannelSupervisor>) {
     // detects SIGTERM and sends disconnect package
     let _ = ctrlc::set_handler(move || {
-        send!(registry_clone.send_disconnect());
+        send!(supervisor.send_disconnect());
         println!("Exiting molecular....");
         std::thread::sleep(std::time::Duration::from_millis(100));
         std::process::exit(1);
     });
-
-    registry.termination().await;
-
-    Ok(())
 }
