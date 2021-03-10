@@ -11,8 +11,8 @@ use std::{collections::HashMap, sync::Arc};
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_trait::async_trait;
-use channel::ChannelSupervisor;
-use config::Serializer;
+use channel::{messages::outgoing, ChannelSupervisor};
+use config::{Channel, Serializer};
 use service::{Event, Service};
 use thiserror::Error;
 
@@ -33,6 +33,7 @@ pub struct ServiceBroker {
     pub instance_id: String,
     pub services: Vec<Service>,
     pub events: HashMap<String, Event>,
+    pub serializer: Serializer,
 
     pid: Addr<Self>,
     channel_supervisor: Addr<ChannelSupervisor>,
@@ -47,6 +48,9 @@ impl Actor for ServiceBroker {
         let channel_supervisor = channel::start_supervisor(pid, Arc::clone(&self.config))
             .await
             .map_err(Error::ChannelError)?;
+
+        send!(self.pid.broadcast_info());
+        send!(channel_supervisor.broadcast_discover());
 
         self.channel_supervisor = channel_supervisor.clone();
 
@@ -75,6 +79,7 @@ impl ServiceBroker {
             instance_id: config.instance_id.clone(),
             services,
             events,
+            serializer: config.serializer.clone(),
 
             pid: Addr::detached(),
             channel_supervisor: Addr::detached(),
@@ -85,5 +90,19 @@ impl ServiceBroker {
     pub async fn start(self) {
         let addr = spawn_actor(self);
         addr.termination().await;
+    }
+
+    pub async fn broadcast_info(&self) -> ActorResult<()> {
+        self.send_info(Channel::Info.channel_to_string(&self.config))
+            .await
+    }
+
+    pub(crate) async fn send_info(&self, channel: String) -> ActorResult<()> {
+        let info = outgoing::InfoMessage::new(&self.config, &self.services);
+        send!(self
+            .channel_supervisor
+            .publish_to_channel(channel, self.serializer.serialize(info)?));
+
+        Produces::ok(())
     }
 }

@@ -1,4 +1,4 @@
-use crate::{service::Service, util};
+use crate::util;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -67,7 +67,6 @@ impl ConfigBuilder {
                 .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
                 .map(|ip| ip.to_string())
                 .collect(),
-            services: vec![],
         }
     }
 }
@@ -127,7 +126,6 @@ pub struct Config {
     pub(crate) ip_list: Vec<String>,
     pub(crate) hostname: String,
     pub(crate) instance_id: String,
-    pub(crate) services: Vec<Service>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -163,7 +161,7 @@ pub struct Tracking {
     shutdown_timeout: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Serializer {
     JSON,
 }
@@ -323,13 +321,6 @@ pub enum SerializeError {
 pub enum DeserializeError {
     #[error("Unable to deserialize from json: {0}")]
     JSON(serde_json::error::Error),
-}
-
-impl Config {
-    pub fn add_services(mut self, services: Vec<Service>) -> Self {
-        self.services = services;
-        self
-    }
 }
 
 fn mol(config: &Config) -> Cow<str> {

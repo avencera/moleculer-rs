@@ -1,6 +1,7 @@
 use crate::{
     config::{Channel, Config},
     nats::Conn,
+    service::Service,
 };
 
 use super::{ChannelSupervisor, Error};
@@ -62,16 +63,6 @@ impl Info {
                 }
             }
         })
-    }
-
-    pub async fn broadcast(&self) -> ActorResult<()> {
-        let info = outgoing::InfoMessage::new(&self.config);
-
-        send!(self
-            .parent
-            .publish(Channel::Info, self.config.serializer.serialize(info)?));
-
-        Produces::ok(())
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {

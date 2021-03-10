@@ -1,6 +1,7 @@
 use crate::{
     config::{Channel, Config},
     nats::Conn,
+    ServiceBroker,
 };
 
 use super::{messages::incoming, messages::outgoing, ChannelSupervisor, Error};
@@ -26,6 +27,7 @@ impl Actor for Discover {
     }
 }
 pub struct Discover {
+    broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
     conn: Conn,
@@ -33,11 +35,13 @@ pub struct Discover {
 
 impl Discover {
     pub async fn new(
+        broker: WeakAddr<ServiceBroker>,
         parent: WeakAddr<ChannelSupervisor>,
         config: &Arc<Config>,
         conn: &Conn,
     ) -> Self {
         Self {
+            broker,
             parent,
             conn: conn.clone(),
             config: Arc::clone(config),
@@ -75,16 +79,13 @@ impl Discover {
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
-        let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
             "{}.{}",
             Channel::Info.channel_to_string(&self.config),
             discover.sender
         );
 
-        send!(self
-            .parent
-            .publish_to_channel(channel, self.config.serializer.serialize(info)?));
+        send!(self.broker.send_info_to(channel));
 
         Produces::ok(())
     }
@@ -108,6 +109,7 @@ impl Actor for DiscoverTargeted {
 
 // This one shouldn't be used to much, DISCOVER packets are usually sent to the DISCOVER broadcast channel
 pub struct DiscoverTargeted {
+    broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
     conn: Conn,
@@ -120,6 +122,7 @@ impl DiscoverTargeted {
         conn: &Conn,
     ) -> Self {
         Self {
+            broker: WeakAddr<ServiceBroker>,
             parent,
             conn: conn.clone(),
             config: Arc::clone(config),
@@ -146,16 +149,13 @@ impl DiscoverTargeted {
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
-        let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
             "{}.{}",
             Channel::Info.channel_to_string(&self.config),
             discover.sender
         );
 
-        send!(self
-            .parent
-            .publish_to_channel(channel, self.config.serializer.serialize(info)?));
+        send!(self.broker.send_info_to(channel));
 
         Produces::ok(())
     }

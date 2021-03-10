@@ -146,8 +146,15 @@ impl ChannelSupervisor {
         self.disconnect =
             spawn_actor(Disconnect::new(self.pid.clone(), &self.config, &self.conn).await);
 
-        self.discover =
-            spawn_actor(Discover::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.discover = spawn_actor(
+            Discover::new(
+                self.broker.clone().downgrade(),
+                self.pid.clone(),
+                &self.config,
+                &self.conn,
+            )
+            .await,
+        );
 
         self.discover_targeted =
             spawn_actor(DiscoverTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
@@ -164,15 +171,11 @@ impl ChannelSupervisor {
 
     // used by DiscoverTargeted once its started
     // should only broadcast discover message if listening for the return messages
-    async fn broadcast_discover(&self) {
+    pub async fn broadcast_discover(&self) {
         send!(self.discover.broadcast());
     }
 
-    async fn broadcast_info(&self) {
-        send!(self.info.broadcast());
-    }
-
-    async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
+    pub async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
     where
         T: AsRef<str>,
     {
@@ -241,9 +244,6 @@ pub async fn start_supervisor(
     call!(channel_supervisor.start_listeners())
         .await
         .map_err(|_| Error::UnableToStartListeners)?;
-
-    send!(channel_supervisor.broadcast_info());
-    send!(channel_supervisor.broadcast_discover());
 
     Ok(channel_supervisor)
 }
