@@ -1,5 +1,7 @@
 pub mod messages;
 
+mod event;
+
 mod disconnect;
 mod discover;
 mod heartbeat;
@@ -16,17 +18,16 @@ use async_trait::async_trait;
 use log::{debug, error};
 use thiserror::Error;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use crate::{
     config,
-    config::{Channel, Config, Registry, Transporter},
+    config::{Channel, Config, Transporter},
     nats,
 };
 
 use self::{
     disconnect::Disconnect,
     discover::{Discover, DiscoverTargeted},
+    event::Event,
     heartbeat::Heartbeat,
     info::{Info, InfoTargeted},
     messages::outgoing::DisconnectMessage,
@@ -153,6 +154,8 @@ impl ChannelSupervisor {
         self.info_targeted =
             spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
+        self.event = spawn_actor(Event::new(self.pid.clone(), &self.config, &self.conn).await);
+
         Produces::ok(())
     }
 
@@ -201,17 +204,6 @@ impl ChannelSupervisor {
 
         debug!("Disconnect message sent");
         Produces::ok(())
-    }
-}
-
-impl Actor for Event {}
-struct Event {
-    parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl Event {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
     }
 }
 

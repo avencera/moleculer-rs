@@ -2,6 +2,7 @@ pub mod incoming {
     use std::collections::HashMap;
 
     use serde::Deserialize;
+    use serde_json::Value;
 
     use crate::service::Service;
 
@@ -57,6 +58,46 @@ pub mod incoming {
     pub struct DiscoverMessage {
         pub ver: String,
         pub sender: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    pub struct EventMessage {
+        pub id: String,
+        pub sender: String,
+        pub ver: String,
+
+        pub event: String,
+
+        #[serde(default)]
+        pub data: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+        pub level: i32,
+
+        #[serde(default)]
+        pub tracing: Option<bool>,
+
+        #[serde(rename = "parentID", default)]
+        pub parent_id: Option<String>,
+
+        #[serde(rename = "requestID", default)]
+        pub request_id: Option<String>,
+
+        #[serde(rename = "caller", default)]
+        pub caller: Option<String>,
+
+        #[serde(default)]
+        pub stream: Option<bool>,
+
+        #[serde(default)]
+        pub seq: Option<i32>,
+
+        #[serde(default)]
+        pub groups: Option<Vec<String>>,
+
+        #[serde(default)]
+        pub broadcast: Option<bool>,
     }
 }
 
@@ -161,7 +202,7 @@ pub mod outgoing {
 
         #[serde(rename = "instanceID")]
         instance_id: &'a str,
-        services: Vec<Service>,
+        services: &'a Vec<Service>,
         ip_list: &'a Vec<String>,
         hostname: &'a str,
         client: Client,
@@ -177,7 +218,7 @@ pub mod outgoing {
                 sender: &config.node_id,
 
                 instance_id: &config.instance_id,
-                services: vec![],
+                services: &config.services,
                 ip_list: &config.ip_list,
                 hostname: &config.hostname,
                 client: Client::new(),

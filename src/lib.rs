@@ -1,13 +1,14 @@
 mod util;
 
 pub mod config;
-mod service;
+pub mod service;
 
 mod channel;
 mod nats;
 
 use std::sync::Arc;
 
+use service::Service;
 use thiserror::Error;
 
 pub(crate) mod built_info {
@@ -21,7 +22,9 @@ pub enum Error {
     ChannelError(#[from] channel::Error),
 }
 
-pub async fn start(config: config::Config) -> Result<(), Error> {
+pub async fn start(config: config::Config, services: Vec<Service>) -> Result<(), Error> {
+    let config = config.add_services(services);
+
     channel::subscribe_to_channels(Arc::new(config))
         .await
         .map_err(Error::ChannelError)

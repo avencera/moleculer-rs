@@ -1,18 +1,62 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error};
+
+use crate::channel::messages::incoming::EventMessage;
+
+pub type EventContext = EventMessage;
 
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
-pub type EventCallback = fn(Context) -> ();
+pub type EventCallback = fn(EventContext) -> Result<(), Box<dyn Error>>;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Action {
     name: String,
-    callback: ActionCallback,
+    params: HashMap<String, String>,
+    #[serde(skip)]
+    callback: Option<ActionCallback>,
 }
 
+#[derive(Default, Debug)]
+pub struct EventBuilder {
+    name: String,
+    params: HashMap<String, String>,
+    callback: Option<EventCallback>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     name: String,
-    callback: EventCallback,
+    params: HashMap<String, String>,
+    #[serde(skip)]
+    pub callback: Option<EventCallback>,
+}
+
+impl EventBuilder {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self {
+            name: name.into(),
+            ..Self::default()
+        }
+    }
+
+    pub fn add_params(mut self, params: HashMap<String, String>) -> Self {
+        self.params = params;
+        self
+    }
+
+    pub fn add_callback(mut self, callback: EventCallback) -> Self {
+        self.callback = Some(callback);
+        self
+    }
+
+    pub fn build(self) -> Event {
+        Event {
+            name: self.name,
+            params: self.params,
+            callback: self.callback,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -20,10 +64,12 @@ pub struct Event {
 pub struct Service {
     name: String,
     version: Option<i32>,
-    #[serde(skip)]
-    actions: HashMap<String, ActionCallback>,
-    #[serde(skip)]
-    events: HashMap<String, EventCallback>,
+
+    settings: HashMap<String, String>,
+    metadata: HashMap<String, String>,
+
+    actions: HashMap<String, Action>,
+    pub(crate) events: HashMap<String, Event>,
 }
 
 impl Service {
@@ -34,18 +80,18 @@ impl Service {
         }
     }
 
-    pub fn version(mut self, version: i32) -> Service {
+    pub fn set_version(mut self, version: i32) -> Service {
         self.version = Some(version);
         self
     }
 
-    pub fn action(mut self, action: Action) -> Service {
-        self.actions.insert(action.name, action.callback);
+    pub fn add_action(mut self, action: Action) -> Service {
+        self.actions.insert(action.name.clone(), action);
         self
     }
 
-    pub fn event(mut self, event: Event) -> Service {
-        self.events.insert(event.name, event.callback);
+    pub fn add_event(mut self, event: Event) -> Service {
+        self.events.insert(event.name.clone(), event);
         self
     }
 }
