@@ -154,7 +154,7 @@ impl Context {
         }
     }
 
-    pub fn emit(&self, event_name: String, params: Bytes) {
-        self.broker.emit(event_name, params)
+    pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+        self.broker.emit(event, params)
     }
 }
