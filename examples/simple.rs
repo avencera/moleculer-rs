@@ -1,6 +1,6 @@
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
-    service::{Context, EventBuilder, Service},
+    service::{EventBuilder, EventContext, Service},
 };
 
 #[tokio::main]
@@ -14,8 +14,17 @@ async fn main() -> eyre::Result<()> {
     }
     .build();
 
-    let event = EventBuilder::new("print-hi").add_callback(print_hi).build();
-    let greeter_service = Service::new("rustGreeter").add_event(event);
+    let print_hi = EventBuilder::new("rustGreeter.printHi")
+        .add_callback(print_hi)
+        .build();
+
+    let print_name = EventBuilder::new("rustGreeter.printName")
+        .add_callback(print_name)
+        .build();
+
+    let greeter_service = Service::new("rustGreeter")
+        .add_event(print_hi)
+        .add_event(print_name);
 
     let services = vec![greeter_service];
 
@@ -24,6 +33,12 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn print_hi(_ctx: Context) {
+fn print_hi(ctx: EventContext) {
+    println!("printHi CTX: {:#?}", ctx);
     println!("PRINTING HI FROM RUST")
+}
+
+fn print_name(ctx: EventContext) {
+    println!("printName CTX: {:#?}", ctx);
+    println!("PRINTING NAME FROM RUST")
 }

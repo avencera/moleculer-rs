@@ -2,8 +2,12 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::channel::messages::incoming::EventMessage;
+
+pub type EventContext = EventMessage;
+
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
-pub type EventCallback = fn(Context) -> ();
+pub type EventCallback = fn(EventContext) -> ();
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Action {
@@ -20,12 +24,12 @@ pub struct EventBuilder {
     callback: Option<EventCallback>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     name: String,
     params: HashMap<String, String>,
     #[serde(skip)]
-    callback: Option<EventCallback>,
+    pub callback: Option<EventCallback>,
 }
 
 impl EventBuilder {
@@ -65,7 +69,7 @@ pub struct Service {
     metadata: HashMap<String, String>,
 
     actions: HashMap<String, Action>,
-    events: HashMap<String, Event>,
+    pub(crate) events: HashMap<String, Event>,
 }
 
 impl Service {
