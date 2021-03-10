@@ -2,7 +2,7 @@ use std::error::Error;
 
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
-    service::{EventBuilder, EventContext, Service},
+    service::{Context, EventBuilder, Service},
     ServiceBroker,
 };
 use serde::Deserialize;
@@ -18,11 +18,9 @@ async fn main() -> eyre::Result<()> {
     }
     .build();
 
-    let print_hi = EventBuilder::new("rustGreeter.printHi")
-        .add_callback(print_hi)
-        .build();
+    let print_hi = EventBuilder::new("printHi").add_callback(print_hi).build();
 
-    let print_name = EventBuilder::new("rustGreeter.printName")
+    let print_name = EventBuilder::new("printName")
         .add_callback(print_name)
         .build();
 
@@ -30,21 +28,19 @@ async fn main() -> eyre::Result<()> {
         .add_event(print_hi)
         .add_event(print_name);
 
-    let services = vec![greeter_service];
-
-    let service_broker = ServiceBroker::new(config, services);
+    let service_broker = ServiceBroker::new(config).add_service(greeter_service);
     service_broker.start().await;
 
     Ok(())
 }
 
-fn print_hi(_ctx: EventContext) -> Result<(), Box<dyn Error>> {
+fn print_hi(_ctx: Context) -> Result<(), Box<dyn Error>> {
     println!("Hello from Rust");
     Ok(())
 }
 
-fn print_name(ctx: EventContext) -> Result<(), Box<dyn Error>> {
-    let msg: PrintNameMessage = serde_json::from_value(ctx.data)?;
+fn print_name(ctx: Context) -> Result<(), Box<dyn Error>> {
+    let msg: PrintNameMessage = serde_json::from_value(ctx.params)?;
 
     println!("Hello to: {} from Rust", msg.name);
 

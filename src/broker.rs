@@ -4,9 +4,13 @@ use act_zero::*;
 use async_trait::async_trait;
 
 use crate::{
-    channel::{self, messages::outgoing, ChannelSupervisor},
+    channel::{
+        self,
+        messages::{incoming::EventMessage, outgoing},
+        ChannelSupervisor,
+    },
     config::{self, Channel, DeserializeError, Serializer},
-    service::{Event, EventContext, Service},
+    service::{Context, Event, Service},
 };
 
 use thiserror::Error;
@@ -119,20 +123,21 @@ impl ServiceBroker {
 
     pub(crate) async fn handle_incoming_event(
         &self,
-        event_context: Result<EventContext, DeserializeError>,
+        event_message: Result<EventMessage, DeserializeError>,
     ) -> ActorResult<()> {
-        let event_context = event_context?;
+        let event_message = event_message?;
 
         let event = self
             .events
-            .get(&event_context.event)
-            .ok_or_else(|| Error::EventNotFound(event_context.event.clone()))?;
+            .get(&event_message.event)
+            .ok_or_else(|| Error::EventNotFound(event_message.event.clone()))?;
 
         let callback = event
             .callback
             .clone()
-            .ok_or_else(|| Error::EventCallbackNotFound(event_context.event.clone()))?;
+            .ok_or_else(|| Error::EventCallbackNotFound(event_message.event.clone()))?;
 
+        let event_context = Context::new(event_message, self.pid.clone().into());
         callback(event_context).map_err(|err| Error::EventCallbackFailed(err.to_string()))?;
 
         Produces::ok(())

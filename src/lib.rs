@@ -9,6 +9,7 @@ mod nats;
 
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
+use bytes::Bytes;
 use config::Config;
 use service::Service;
 
@@ -43,5 +44,11 @@ impl ServiceBroker {
         self.addr.termination().await
     }
 
-    pub async fn emit(self) {}
+    pub fn emit(&self, event: String, params: Bytes) {}
+}
+
+impl From<Addr<broker::ServiceBroker>> for ServiceBroker {
+    fn from(addr: Addr<broker::ServiceBroker>) -> Self {
+        Self { addr }
+    }
 }
