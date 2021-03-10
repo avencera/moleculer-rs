@@ -85,7 +85,7 @@ impl Discover {
             discover.sender
         );
 
-        send!(self.broker.send_info_to(channel));
+        send!(self.broker.publish_info_to_channel(channel));
 
         Produces::ok(())
     }
@@ -111,19 +111,13 @@ impl Actor for DiscoverTargeted {
 pub struct DiscoverTargeted {
     broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
-    parent: WeakAddr<ChannelSupervisor>,
     conn: Conn,
 }
 
 impl DiscoverTargeted {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            broker: WeakAddr<ServiceBroker>,
-            parent,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
@@ -155,7 +149,7 @@ impl DiscoverTargeted {
             discover.sender
         );
 
-        send!(self.broker.send_info_to(channel));
+        send!(self.broker.publish_info_to_channel(channel));
 
         Produces::ok(())
     }

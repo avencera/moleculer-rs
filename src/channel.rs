@@ -133,6 +133,8 @@ impl ChannelSupervisor {
     }
 
     async fn start_listeners(&mut self) -> ActorResult<()> {
+        let broker_pid = self.broker.clone().downgrade();
+
         self.heartbeat =
             spawn_actor(Heartbeat::new(self.pid.clone(), &self.config, &self.conn).await);
 
@@ -157,14 +159,14 @@ impl ChannelSupervisor {
         );
 
         self.discover_targeted =
-            spawn_actor(DiscoverTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
+            spawn_actor(DiscoverTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.info = spawn_actor(Info::new(self.pid.clone(), &self.config, &self.conn).await);
 
         self.info_targeted =
             spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
-        self.event = spawn_actor(Event::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.event = spawn_actor(Event::new(broker_pid, &self.config, &self.conn).await);
 
         Produces::ok(())
     }

@@ -12,8 +12,8 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_trait::async_trait;
 use channel::{messages::outgoing, ChannelSupervisor};
-use config::{Channel, Serializer};
-use service::{Event, Service};
+use config::{Channel, DeserializeError, Serializer};
+use service::{Event, EventContext, Service};
 use thiserror::Error;
 
 pub(crate) mod built_info {
@@ -25,6 +25,18 @@ pub(crate) mod built_info {
 pub enum Error {
     #[error(transparent)]
     ChannelError(#[from] channel::Error),
+
+    #[error("Unable to deserialize to EventContext: {0}")]
+    EventDeserializeFail(#[from] config::DeserializeError),
+
+    #[error("Unable to find event '{0}' in registry")]
+    EventNotFound(String),
+
+    #[error("Unable to find callback function for event '{0}'")]
+    CallbackNotFound(String),
+
+    #[error("Call back function failed to complete: {0}")]
+    CallbackFailed(String),
 }
 
 pub struct ServiceBroker {
@@ -92,16 +104,37 @@ impl ServiceBroker {
         addr.termination().await;
     }
 
-    pub async fn broadcast_info(&self) -> ActorResult<()> {
-        self.send_info(Channel::Info.channel_to_string(&self.config))
+    async fn broadcast_info(&self) -> ActorResult<()> {
+        self.publish_info_to_channel(Channel::Info.channel_to_string(&self.config))
             .await
     }
 
-    pub(crate) async fn send_info(&self, channel: String) -> ActorResult<()> {
+    pub(crate) async fn publish_info_to_channel(&self, channel: String) -> ActorResult<()> {
         let info = outgoing::InfoMessage::new(&self.config, &self.services);
         send!(self
             .channel_supervisor
             .publish_to_channel(channel, self.serializer.serialize(info)?));
+
+        Produces::ok(())
+    }
+
+    pub(crate) async fn handle_incoming_event(
+        &self,
+        event_context: Result<EventContext, DeserializeError>,
+    ) -> ActorResult<()> {
+        let event_context = event_context?;
+
+        let event = self
+            .events
+            .get(&event_context.event)
+            .ok_or_else(|| Error::EventNotFound(event_context.event.clone()))?;
+
+        let callback = event
+            .callback
+            .clone()
+            .ok_or_else(|| Error::CallbackNotFound(event_context.event.clone()))?;
+
+        callback(event_context).map_err(|err| Error::CallbackFailed(err.to_string()))?;
 
         Produces::ok(())
     }

@@ -2,31 +2,19 @@ use crate::{
     channel::messages::incoming::EventMessage,
     config::{self, Channel, Config},
     nats::Conn,
-    service,
+    ServiceBroker,
 };
 
-use super::ChannelSupervisor;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use config::DeserializeError;
 use log::{debug, error, info};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum Error {
-    #[error("Unable to deserialize to EventContext: {0}")]
-    DeserializeFail(#[from] config::DeserializeError),
-
-    #[error("Unable to find event '{0}' in registry")]
-    EventNotFound(String),
-
-    #[error("Unable to find callback function for event '{0}'")]
-    CallbackNotFound(String),
-
-    #[error("Call back function failed to complete: {0}")]
-    CallbackFailed(String),
-}
+pub enum Error {}
 
 #[async_trait]
 impl Actor for Event {
@@ -45,26 +33,14 @@ impl Actor for Event {
 }
 pub struct Event {
     config: Arc<Config>,
-    parent: WeakAddr<ChannelSupervisor>,
-    events: HashMap<String, service::Event>,
+    broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl Event {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
-        let events = config
-            .services
-            .iter()
-            .flat_map(|service| service.events.clone())
-            .collect();
-
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            parent,
-            events,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
@@ -89,19 +65,10 @@ impl Event {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let event_context: EventMessage = self.config.serializer.deserialize(&msg.data)?;
+        let event_context: Result<EventMessage, DeserializeError> =
+            self.config.serializer.deserialize(&msg.data);
 
-        let event = self
-            .events
-            .get(&event_context.event)
-            .ok_or_else(|| Error::EventNotFound(event_context.event.clone()))?;
-
-        let callback = event
-            .callback
-            .clone()
-            .ok_or_else(|| Error::CallbackNotFound(event_context.event.clone()))?;
-
-        callback(event_context).map_err(|err| Error::CallbackFailed(err.to_string()))?;
+        send!(self.broker.handle_incoming_event(event_context));
 
         Produces::ok(())
     }
