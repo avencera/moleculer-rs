@@ -157,4 +157,8 @@ impl Context {
     pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {
         self.broker.emit(event, params)
     }
+
+    pub fn broadcast<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+        self.broker.broadcast(event, params)
+    }
 }

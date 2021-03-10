@@ -45,6 +45,8 @@ impl ServiceBroker {
     }
 
     pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {}
+
+    pub fn broadcast<S: Into<String>>(&self, event: S, params: Vec<u8>) {}
 }
 
 impl From<Addr<broker::ServiceBroker>> for ServiceBroker {
