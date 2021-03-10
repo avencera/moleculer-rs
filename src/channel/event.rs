@@ -23,6 +23,9 @@ pub enum Error {
 
     #[error("Unable to find callback function for event '{0}'")]
     CallbackNotFound(String),
+
+    #[error("Call back function failed to complete: {0}")]
+    CallbackFailed(String),
 }
 
 #[async_trait]
@@ -98,7 +101,7 @@ impl Event {
             .clone()
             .ok_or_else(|| Error::CallbackNotFound(event_context.event.clone()))?;
 
-        callback(event_context);
+        callback(event_context).map_err(|err| Error::CallbackFailed(err.to_string()))?;
 
         Produces::ok(())
     }
