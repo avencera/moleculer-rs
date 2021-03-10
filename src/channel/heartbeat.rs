@@ -103,7 +103,7 @@ impl Heartbeat {
 
     async fn handle_message(&self, _msg: Message) -> ActorResult<()> {
         // TODO: handle and save to registry
-        // let heartbeat_msg: HeartbeatMessageOwned = self.config.deserialize(&msg.data)?;
+        // let heartbeat_msg: HeartbeatMessageOwned = self.config.serializer.deserialize(&msg.data)?;
         // do nothing with incoming heartbeat messages for now
         Produces::ok(())
     }
@@ -116,7 +116,7 @@ impl Heartbeat {
 
         send!(self
             .parent
-            .publish(Channel::Heartbeat, self.config.serialize(msg)?));
+            .publish(Channel::Heartbeat, self.config.serializer.serialize(msg)?));
 
         Produces::ok(())
     }

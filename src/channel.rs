@@ -199,7 +199,7 @@ impl ChannelSupervisor {
         let msg = DisconnectMessage::new(&self.config.node_id);
 
         let _ = self
-            .publish(Channel::Disconnect, self.config.serialize(msg)?)
+            .publish(Channel::Disconnect, self.config.serializer.serialize(msg)?)
             .await;
 
         debug!("Disconnect message sent");

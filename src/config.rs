@@ -168,6 +168,20 @@ pub enum Serializer {
     JSON,
 }
 
+impl Serializer {
+    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
+        match self {
+            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
+        }
+    }
+
+    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
+        match self {
+            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Registry {
     Local,
@@ -315,18 +329,6 @@ impl Config {
     pub fn add_services(mut self, services: Vec<Service>) -> Self {
         self.services = services;
         self
-    }
-
-    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
-        match self.serializer {
-            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
-        }
-    }
-
-    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
-        match self.serializer {
-            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
-        }
     }
 }
 

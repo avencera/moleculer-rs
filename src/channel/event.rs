@@ -89,7 +89,7 @@ impl Event {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let event_context: EventMessage = self.config.deserialize(&msg.data)?;
+        let event_context: EventMessage = self.config.serializer.deserialize(&msg.data)?;
 
         let event = self
             .events

@@ -69,7 +69,7 @@ impl Info {
 
         send!(self
             .parent
-            .publish(Channel::Info, self.config.serialize(info)?));
+            .publish(Channel::Info, self.config.serializer.serialize(info)?));
 
         Produces::ok(())
     }

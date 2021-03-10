@@ -8,6 +8,7 @@ mod nats;
 
 use std::sync::Arc;
 
+use config::Serializer;
 use service::Service;
 use thiserror::Error;
 
@@ -28,4 +29,9 @@ pub async fn start(config: config::Config, services: Vec<Service>) -> Result<(),
     channel::subscribe_to_channels(Arc::new(config))
         .await
         .map_err(Error::ChannelError)
+}
+
+pub struct Broker {
+    node_id: String,
+    serializer: Serializer,
 }

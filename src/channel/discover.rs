@@ -67,13 +67,14 @@ impl Discover {
         send!(self.parent.publish(
             Channel::Discover,
             self.config
+                .serializer
                 .serialize(msg)
                 .expect("should always serialize discover msg")
         ));
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
+        let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
         let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
             "{}.{}",
@@ -83,7 +84,7 @@ impl Discover {
 
         send!(self
             .parent
-            .publish_to_channel(channel, self.config.serialize(info)?));
+            .publish_to_channel(channel, self.config.serializer.serialize(info)?));
 
         Produces::ok(())
     }
@@ -144,7 +145,7 @@ impl DiscoverTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
+        let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
         let info = outgoing::InfoMessage::new(&self.config);
         let channel = format!(
             "{}.{}",
@@ -154,7 +155,7 @@ impl DiscoverTargeted {
 
         send!(self
             .parent
-            .publish_to_channel(channel, self.config.serialize(info)?));
+            .publish_to_channel(channel, self.config.serializer.serialize(info)?));
 
         Produces::ok(())
     }
