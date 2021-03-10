@@ -212,13 +212,13 @@ pub mod outgoing {
     }
 
     impl<'a> InfoMessage<'a> {
-        pub fn new(config: &'a Config) -> Self {
+        pub fn new(config: &'a Config, services: &'a Vec<Service>) -> Self {
             Self {
                 ver: "4",
                 sender: &config.node_id,
 
                 instance_id: &config.instance_id,
-                services: &config.services,
+                services,
                 ip_list: &config.ip_list,
                 hostname: &config.hostname,
                 client: Client::new(),

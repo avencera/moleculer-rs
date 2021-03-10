@@ -1,11 +1,12 @@
 use crate::{
+    broker::ServiceBroker,
     config::{Channel, Config},
     nats::Conn,
 };
 
-use super::{messages::incoming, messages::outgoing, ChannelSupervisor, Error};
+use super::{messages::incoming, messages::outgoing, ChannelSupervisor};
 use act_zero::*;
-use async_nats::{Message, Subscription};
+use async_nats::Message;
 use async_trait::async_trait;
 use log::{debug, error, info};
 use std::sync::Arc;
@@ -26,6 +27,7 @@ impl Actor for Discover {
     }
 }
 pub struct Discover {
+    broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
     conn: Conn,
@@ -33,11 +35,13 @@ pub struct Discover {
 
 impl Discover {
     pub async fn new(
+        broker: WeakAddr<ServiceBroker>,
         parent: WeakAddr<ChannelSupervisor>,
         config: &Arc<Config>,
         conn: &Conn,
     ) -> Self {
         Self {
+            broker,
             parent,
             conn: conn.clone(),
             config: Arc::clone(config),
@@ -67,23 +71,21 @@ impl Discover {
         send!(self.parent.publish(
             Channel::Discover,
             self.config
+                .serializer
                 .serialize(msg)
                 .expect("should always serialize discover msg")
         ));
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
-        let info = outgoing::InfoMessage::new(&self.config);
+        let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
         let channel = format!(
             "{}.{}",
             Channel::Info.channel_to_string(&self.config),
             discover.sender
         );
 
-        send!(self
-            .parent
-            .publish_to_channel(channel, self.config.serialize(info)?));
+        send!(self.broker.publish_info_to_channel(channel));
 
         Produces::ok(())
     }
@@ -107,19 +109,15 @@ impl Actor for DiscoverTargeted {
 
 // This one shouldn't be used to much, DISCOVER packets are usually sent to the DISCOVER broadcast channel
 pub struct DiscoverTargeted {
+    broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
-    parent: WeakAddr<ChannelSupervisor>,
     conn: Conn,
 }
 
 impl DiscoverTargeted {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            parent,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
@@ -144,17 +142,14 @@ impl DiscoverTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let discover: incoming::DiscoverMessage = self.config.deserialize(&msg.data)?;
-        let info = outgoing::InfoMessage::new(&self.config);
+        let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
         let channel = format!(
             "{}.{}",
             Channel::Info.channel_to_string(&self.config),
             discover.sender
         );
 
-        send!(self
-            .parent
-            .publish_to_channel(channel, self.config.serialize(info)?));
+        send!(self.broker.publish_info_to_channel(channel));
 
         Produces::ok(())
     }

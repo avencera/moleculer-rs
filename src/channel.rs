@@ -19,6 +19,7 @@ use log::{debug, error};
 use thiserror::Error;
 
 use crate::{
+    broker::ServiceBroker,
     config,
     config::{Channel, Config, Transporter},
     nats,
@@ -65,6 +66,8 @@ impl Actor for ChannelSupervisor {
 }
 
 pub struct ChannelSupervisor {
+    broker: Addr<ServiceBroker>,
+
     conn: nats::Conn,
     config: Arc<Config>,
     pid: WeakAddr<Self>,
@@ -92,7 +95,7 @@ pub struct ChannelSupervisor {
 }
 
 impl ChannelSupervisor {
-    async fn new(config: Arc<Config>) -> Self {
+    async fn new(broker: Addr<ServiceBroker>, config: Arc<Config>) -> Self {
         let channels = Channel::build_hashmap(&config);
 
         let conn = match &config.transporter {
@@ -102,6 +105,7 @@ impl ChannelSupervisor {
         };
 
         Self {
+            broker,
             conn,
             config,
             channels,
@@ -130,6 +134,8 @@ impl ChannelSupervisor {
     }
 
     async fn start_listeners(&mut self) -> ActorResult<()> {
+        let broker_pid = self.broker.clone().downgrade();
+
         self.heartbeat =
             spawn_actor(Heartbeat::new(self.pid.clone(), &self.config, &self.conn).await);
 
@@ -143,33 +149,36 @@ impl ChannelSupervisor {
         self.disconnect =
             spawn_actor(Disconnect::new(self.pid.clone(), &self.config, &self.conn).await);
 
-        self.discover =
-            spawn_actor(Discover::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.discover = spawn_actor(
+            Discover::new(
+                self.broker.clone().downgrade(),
+                self.pid.clone(),
+                &self.config,
+                &self.conn,
+            )
+            .await,
+        );
 
         self.discover_targeted =
-            spawn_actor(DiscoverTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
+            spawn_actor(DiscoverTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.info = spawn_actor(Info::new(self.pid.clone(), &self.config, &self.conn).await);
 
         self.info_targeted =
             spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
 
-        self.event = spawn_actor(Event::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.event = spawn_actor(Event::new(broker_pid, &self.config, &self.conn).await);
 
         Produces::ok(())
     }
 
     // used by DiscoverTargeted once its started
     // should only broadcast discover message if listening for the return messages
-    async fn broadcast_discover(&self) {
+    pub async fn broadcast_discover(&self) {
         send!(self.discover.broadcast());
     }
 
-    async fn broadcast_info(&self) {
-        send!(self.info.broadcast());
-    }
-
-    async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
+    pub async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
     where
         T: AsRef<str>,
     {
@@ -199,7 +208,7 @@ impl ChannelSupervisor {
         let msg = DisconnectMessage::new(&self.config.node_id);
 
         let _ = self
-            .publish(Channel::Disconnect, self.config.serialize(msg)?)
+            .publish(Channel::Disconnect, self.config.serializer.serialize(msg)?)
             .await;
 
         debug!("Disconnect message sent");
@@ -229,26 +238,25 @@ impl Response {
     }
 }
 
-pub async fn subscribe_to_channels(config: Arc<Config>) -> Result<(), Error> {
-    let registry = spawn_actor(ChannelSupervisor::new(config).await);
-    let registry_clone = registry.clone();
+pub async fn start_supervisor(
+    broker: Addr<ServiceBroker>,
+    config: Arc<Config>,
+) -> Result<Addr<ChannelSupervisor>, Error> {
+    let channel_supervisor = spawn_actor(ChannelSupervisor::new(broker, config).await);
 
-    call!(registry.start_listeners())
+    call!(channel_supervisor.start_listeners())
         .await
         .map_err(|_| Error::UnableToStartListeners)?;
 
-    send!(registry.broadcast_info());
-    send!(registry.broadcast_discover());
+    Ok(channel_supervisor)
+}
 
+pub async fn listen_for_disconnect(supervisor: Addr<ChannelSupervisor>) {
     // detects SIGTERM and sends disconnect package
     let _ = ctrlc::set_handler(move || {
-        send!(registry_clone.send_disconnect());
+        send!(supervisor.send_disconnect());
         println!("Exiting molecular....");
         std::thread::sleep(std::time::Duration::from_millis(100));
         std::process::exit(1);
     });
-
-    registry.termination().await;
-
-    Ok(())
 }

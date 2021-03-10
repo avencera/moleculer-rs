@@ -1,13 +1,12 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{collections::HashMap, error::Error};
 
-use crate::channel::messages::incoming::EventMessage;
-
-pub type EventContext = EventMessage;
+use crate::{channel::messages::incoming::EventMessage, ServiceBroker};
 
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
-pub type EventCallback = fn(EventContext) -> Result<(), Box<dyn Error>>;
+pub type EventCallback = fn(Context) -> Result<(), Box<dyn Error>>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Action {
@@ -103,29 +102,59 @@ pub enum EventType {
     Broadcast,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct Context {
-    id: String,
-    broker: String,
-    #[serde(rename = "nodeID")]
-    node_id: String,
-    action: Option<String>,
+    pub id: String,
+    pub broker: ServiceBroker,
+    pub node_id: String,
+    pub action: Option<String>,
 
-    event: Option<String>,
-    event_name: Option<String>,
-    event_type: Option<EventType>,
-    event_groups: Vec<String>,
+    pub event_name: Option<String>,
+    pub event_type: Option<EventType>,
+    pub event_groups: Vec<String>,
 
-    caller: String,
-    #[serde(rename = "requestID")]
-    request_id: String,
-    #[serde(rename = "parentID")]
-    parent_id: String,
+    pub caller: Option<String>,
+    pub request_id: Option<String>,
+    pub parent_id: Option<String>,
 
-    params: Bytes,
-    meta: Bytes,
-    locals: Bytes,
+    pub params: Value,
+    pub meta: Value,
+    pub locals: Option<Value>,
 
-    level: i32,
+    pub level: i32,
+}
+
+impl Context {
+    pub fn new(event_message: EventMessage, service_broker: ServiceBroker) -> Self {
+        let event_type = if event_message.broadcast.unwrap_or(false) {
+            EventType::Broadcast
+        } else {
+            EventType::Emit
+        };
+
+        Self {
+            broker: service_broker,
+            id: event_message.id,
+            params: event_message.data,
+
+            action: None,
+
+            event_type: Some(event_type),
+            event_name: Some(event_message.event),
+            event_groups: vec![],
+
+            node_id: event_message.sender,
+            caller: event_message.caller,
+            parent_id: event_message.parent_id,
+            request_id: event_message.request_id,
+
+            meta: event_message.meta,
+            level: event_message.level,
+
+            locals: None,
+        }
+    }
+
+    pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+        self.broker.emit(event, params)
+    }
 }

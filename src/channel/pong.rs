@@ -69,7 +69,7 @@ impl Pong {
     }
 
     async fn handle_message(&self, msg: Message) -> Result<(), Error> {
-        // let pong_msg: PongMessage = self.config.deserialize(&msg.data)?;
+        // let pong_msg: PongMessage = self.config.serializer.deserialize(&msg.data)?;
         // do nothing with incoming disconnect messages for now
         Ok(())
     }

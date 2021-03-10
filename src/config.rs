@@ -1,4 +1,4 @@
-use crate::{service::Service, util};
+use crate::util;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -67,7 +67,6 @@ impl ConfigBuilder {
                 .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
                 .map(|ip| ip.to_string())
                 .collect(),
-            services: vec![],
         }
     }
 }
@@ -127,7 +126,6 @@ pub struct Config {
     pub(crate) ip_list: Vec<String>,
     pub(crate) hostname: String,
     pub(crate) instance_id: String,
-    pub(crate) services: Vec<Service>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -163,9 +161,23 @@ pub struct Tracking {
     shutdown_timeout: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Serializer {
     JSON,
+}
+
+impl Serializer {
+    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
+        match self {
+            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
+        }
+    }
+
+    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
+        match self {
+            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -309,25 +321,6 @@ pub enum SerializeError {
 pub enum DeserializeError {
     #[error("Unable to deserialize from json: {0}")]
     JSON(serde_json::error::Error),
-}
-
-impl Config {
-    pub fn add_services(mut self, services: Vec<Service>) -> Self {
-        self.services = services;
-        self
-    }
-
-    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
-        match self.serializer {
-            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
-        }
-    }
-
-    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
-        match self.serializer {
-            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
-        }
-    }
 }
 
 fn mol(config: &Config) -> Cow<str> {

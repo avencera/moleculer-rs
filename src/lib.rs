@@ -3,29 +3,52 @@ mod util;
 pub mod config;
 pub mod service;
 
+mod broker;
 mod channel;
 mod nats;
 
-use std::sync::Arc;
-
+use act_zero::runtimes::tokio::spawn_actor;
+use act_zero::*;
+use bytes::Bytes;
+use config::Config;
 use service::Service;
-use thiserror::Error;
 
 pub(crate) mod built_info {
     #[allow(dead_code)]
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    ChannelError(#[from] channel::Error),
+#[derive(Clone)]
+pub struct ServiceBroker {
+    addr: Addr<broker::ServiceBroker>,
 }
 
-pub async fn start(config: config::Config, services: Vec<Service>) -> Result<(), Error> {
-    let config = config.add_services(services);
+impl ServiceBroker {
+    pub fn new(config: Config) -> ServiceBroker {
+        ServiceBroker {
+            addr: spawn_actor(broker::ServiceBroker::new(config)),
+        }
+    }
 
-    channel::subscribe_to_channels(Arc::new(config))
-        .await
-        .map_err(Error::ChannelError)
+    pub fn add_service(self, service: Service) -> Self {
+        send!(self.addr.add_service(service));
+        self
+    }
+
+    pub fn add_services(self, services: Vec<Service>) -> Self {
+        send!(self.addr.add_services(services));
+        self
+    }
+
+    pub async fn start(self) {
+        self.addr.termination().await
+    }
+
+    pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {}
+}
+
+impl From<Addr<broker::ServiceBroker>> for ServiceBroker {
+    fn from(addr: Addr<broker::ServiceBroker>) -> Self {
+        Self { addr }
+    }
 }
