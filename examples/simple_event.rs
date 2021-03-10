@@ -44,14 +44,14 @@ fn print_hi(_ctx: EventContext) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_name(ctx: EventContext) -> Result<(), Box<dyn Error>> {
-    let name: Name = serde_json::from_value(ctx.data)?;
+    let msg: PrintNameMessage = serde_json::from_value(ctx.data)?;
 
-    println!("Hello to: {} from Rust", name.name);
+    println!("Hello to: {} from Rust", msg.name);
 
     Ok(())
 }
 
 #[derive(Deserialize)]
-struct Name {
+struct PrintNameMessage {
     name: String,
 }
