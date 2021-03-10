@@ -19,9 +19,10 @@ use log::{debug, error};
 use thiserror::Error;
 
 use crate::{
+    broker::ServiceBroker,
     config,
     config::{Channel, Config, Transporter},
-    nats, ServiceBroker,
+    nats,
 };
 
 use self::{

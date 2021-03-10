@@ -1,8 +1,8 @@
 use crate::{
+    broker::ServiceBroker,
     channel::messages::incoming::EventMessage,
     config::{self, Channel, Config},
     nats::Conn,
-    ServiceBroker,
 };
 
 use act_zero::*;

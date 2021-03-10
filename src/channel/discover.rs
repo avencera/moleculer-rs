@@ -1,12 +1,12 @@
 use crate::{
+    broker::ServiceBroker,
     config::{Channel, Config},
     nats::Conn,
-    ServiceBroker,
 };
 
-use super::{messages::incoming, messages::outgoing, ChannelSupervisor, Error};
+use super::{messages::incoming, messages::outgoing, ChannelSupervisor};
 use act_zero::*;
-use async_nats::{Message, Subscription};
+use async_nats::Message;
 use async_trait::async_trait;
 use log::{debug, error, info};
 use std::sync::Arc;

@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
 
-use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_trait::async_trait;
 
@@ -24,10 +23,10 @@ pub enum Error {
     EventNotFound(String),
 
     #[error("Unable to find callback function for event '{0}'")]
-    CallbackNotFound(String),
+    EventCallbackNotFound(String),
 
     #[error("Call back function failed to complete: {0}")]
-    CallbackFailed(String),
+    EventCallbackFailed(String),
 }
 
 pub struct ServiceBroker {
@@ -70,18 +69,13 @@ impl Actor for ServiceBroker {
     }
 }
 impl ServiceBroker {
-    pub fn new(config: config::Config, services: Vec<Service>) -> Self {
-        let events = services
-            .iter()
-            .flat_map(|service| service.events.clone())
-            .collect();
-
+    pub fn new(config: config::Config) -> Self {
         Self {
             namespace: config.namespace.clone(),
             node_id: config.node_id.clone(),
             instance_id: config.instance_id.clone(),
-            services,
-            events,
+            services: vec![],
+            events: HashMap::new(),
             serializer: config.serializer.clone(),
 
             pid: Addr::detached(),
@@ -90,14 +84,28 @@ impl ServiceBroker {
         }
     }
 
-    pub async fn start(self) {
-        let addr = spawn_actor(self);
-        addr.termination().await;
-    }
-
+    // private
     async fn broadcast_info(&self) -> ActorResult<()> {
         self.publish_info_to_channel(Channel::Info.channel_to_string(&self.config))
             .await
+    }
+
+    pub(crate) async fn add_service(&mut self, service: Service) {
+        self.services.push(service);
+
+        let events = self
+            .services
+            .iter()
+            .flat_map(|service| service.events.clone())
+            .collect();
+
+        self.events = events;
+    }
+
+    pub(crate) async fn add_services(&mut self, services: Vec<Service>) {
+        for service in services {
+            self.services.push(service);
+        }
     }
 
     pub(crate) async fn publish_info_to_channel(&self, channel: String) -> ActorResult<()> {
@@ -123,9 +131,9 @@ impl ServiceBroker {
         let callback = event
             .callback
             .clone()
-            .ok_or_else(|| Error::CallbackNotFound(event_context.event.clone()))?;
+            .ok_or_else(|| Error::EventCallbackNotFound(event_context.event.clone()))?;
 
-        callback(event_context).map_err(|err| Error::CallbackFailed(err.to_string()))?;
+        callback(event_context).map_err(|err| Error::EventCallbackFailed(err.to_string()))?;
 
         Produces::ok(())
     }
