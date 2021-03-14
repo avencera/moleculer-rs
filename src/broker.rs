@@ -2,6 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use act_zero::*;
 use async_trait::async_trait;
+use log::{debug, error};
+use tokio::task::spawn_blocking;
 
 use crate::{
     channel::{
@@ -138,7 +140,19 @@ impl ServiceBroker {
             .ok_or_else(|| Error::EventCallbackNotFound(event_message.event.clone()))?;
 
         let event_context = Context::new(event_message, self.pid.clone().into());
-        callback(event_context).map_err(|err| Error::EventCallbackFailed(err.to_string()))?;
+
+        // can't use async function as a call back so to be safe call it as blocking
+        let res = tokio::task::spawn_blocking(move || match &callback(event_context) {
+            Ok(_) => debug!("Callback succeeded"),
+            Err(error) => error!("Callback failed: {:?}", error),
+        });
+
+        // await the possibly blocking call in a new task
+        self.pid.send_fut(async move {
+            if let Err(_) = res.await {
+                error!("Join error on callback")
+            }
+        });
 
         Produces::ok(())
     }
