@@ -15,7 +15,7 @@ pub mod incoming {
         lang_version: String,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct PingMessage {
         pub ver: String,
         pub sender: String,
@@ -23,20 +23,20 @@ pub mod incoming {
         pub time: i64,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct HeartbeatMessage {
         pub ver: String,
         pub sender: String,
         pub cpu: f32,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct DisconnectMessage {
         pub ver: String,
         pub sender: String,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct InfoMessage {
         ver: String,
@@ -54,7 +54,7 @@ pub mod incoming {
         metadata: HashMap<String, String>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct DiscoverMessage {
         pub ver: String,
         pub sender: String,
@@ -202,8 +202,8 @@ pub mod outgoing {
 
         #[serde(rename = "instanceID")]
         instance_id: &'a str,
-        services: &'a Vec<Service>,
-        ip_list: &'a Vec<String>,
+        services: &'a [Service],
+        ip_list: &'a [String],
         hostname: &'a str,
         client: Client,
 
@@ -212,7 +212,7 @@ pub mod outgoing {
     }
 
     impl<'a> InfoMessage<'a> {
-        pub fn new(config: &'a Config, services: &'a Vec<Service>) -> Self {
+        pub fn new(config: &'a Config, services: &'a [Service]) -> Self {
             Self {
                 ver: "4",
                 sender: &config.node_id,

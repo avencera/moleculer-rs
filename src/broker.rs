@@ -2,13 +2,15 @@ use std::{collections::HashMap, sync::Arc};
 
 use act_zero::*;
 use async_trait::async_trait;
-use log::{debug, error};
-use tokio::task::spawn_blocking;
+use log::error;
 
 use crate::{
     channels::{
         self,
-        messages::{incoming::EventMessage, outgoing},
+        messages::{
+            incoming::{Client, EventMessage},
+            outgoing::{self},
+        },
         ChannelSupervisor,
     },
     config::{self, Channel, DeserializeError, Serializer},
@@ -36,16 +38,59 @@ pub enum Error {
 }
 
 pub struct ServiceBroker {
-    pub namespace: String,
-    pub node_id: String,
-    pub instance_id: String,
-    pub services: Vec<Service>,
-    pub events: HashMap<String, Event>,
-    pub serializer: Serializer,
+    pub(crate) namespace: String,
+    pub(crate) node_id: String,
+    pub(crate) instance_id: String,
+    pub(crate) serializer: Serializer,
+
+    pub(crate) services: Vec<Service>,
+
+    pub(crate) internal_events: InternalEvents,
+    pub(crate) external_events: ExternalEvents,
 
     pid: Addr<Self>,
     channel_supervisor: Addr<ChannelSupervisor>,
     config: Arc<config::Config>,
+}
+
+pub struct InternalEvents(HashMap<String, Event>);
+
+impl InternalEvents {
+    fn new() -> Self {
+        InternalEvents(HashMap::new())
+    }
+
+    fn get(&self, key: &str) -> Option<&Event> {
+        self.0.get(key)
+    }
+}
+
+impl From<&Vec<Service>> for InternalEvents {
+    fn from(services: &Vec<Service>) -> Self {
+        InternalEvents(
+            services
+                .iter()
+                .flat_map(|service| service.events.clone())
+                .collect(),
+        )
+    }
+}
+
+pub struct ExternalEvents(HashMap<String, Vec<Node>>);
+
+impl ExternalEvents {
+    fn new() -> Self {
+        ExternalEvents(HashMap::new())
+    }
+}
+
+pub struct Node {
+    pub(crate) name: String,
+    pub(crate) cpu: Option<f32>,
+    pub(crate) ip_list: Vec<String>,
+    pub(crate) hostname: String,
+    pub(crate) client: Client,
+    pub(crate) instance_id: String,
 }
 
 #[async_trait]
@@ -75,14 +120,17 @@ impl Actor for ServiceBroker {
     }
 }
 impl ServiceBroker {
-    pub fn new(config: config::Config) -> Self {
+    pub(crate) fn new(config: config::Config) -> Self {
         Self {
             namespace: config.namespace.clone(),
             node_id: config.node_id.clone(),
             instance_id: config.instance_id.clone(),
-            services: vec![],
-            events: HashMap::new(),
             serializer: config.serializer.clone(),
+
+            services: vec![],
+
+            internal_events: InternalEvents::new(),
+            external_events: ExternalEvents::new(),
 
             pid: Addr::detached(),
             channel_supervisor: Addr::detached(),
@@ -99,13 +147,8 @@ impl ServiceBroker {
     pub(crate) async fn add_service(&mut self, service: Service) {
         self.services.push(service);
 
-        let events = self
-            .services
-            .iter()
-            .flat_map(|service| service.events.clone())
-            .collect();
-
-        self.events = events;
+        let events = (&self.services).into();
+        self.internal_events = events;
     }
 
     pub(crate) async fn add_services(&mut self, services: Vec<Service>) {
@@ -130,7 +173,7 @@ impl ServiceBroker {
         let event_message = event_message?;
 
         let event = self
-            .events
+            .internal_events
             .get(&event_message.event)
             .ok_or_else(|| Error::EventNotFound(event_message.event.clone()))?;
 

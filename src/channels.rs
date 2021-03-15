@@ -151,7 +151,7 @@ impl ChannelSupervisor {
 
         self.discover = spawn_actor(
             Discover::new(
-                self.broker.clone().downgrade(),
+                broker_pid.clone(),
                 self.pid.clone(),
                 &self.config,
                 &self.conn,
@@ -162,7 +162,7 @@ impl ChannelSupervisor {
         self.discover_targeted =
             spawn_actor(DiscoverTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
-        self.info = spawn_actor(Info::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.info = spawn_actor(Info::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.info_targeted =
             spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
@@ -172,8 +172,6 @@ impl ChannelSupervisor {
         Produces::ok(())
     }
 
-    // used by DiscoverTargeted once its started
-    // should only broadcast discover message if listening for the return messages
     pub async fn broadcast_discover(&self) {
         send!(self.discover.broadcast());
     }

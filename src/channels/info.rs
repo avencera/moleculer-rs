@@ -1,10 +1,11 @@
 use crate::{
+    broker::ServiceBroker,
     config::{Channel, Config},
     nats::Conn,
     service::Service,
 };
 
-use super::{ChannelSupervisor, Error};
+use super::{messages::incoming::InfoMessage, ChannelSupervisor, Error};
 use crate::channels::messages::outgoing;
 use act_zero::*;
 use async_nats::Message;
@@ -29,18 +30,14 @@ impl Actor for Info {
 }
 pub struct Info {
     config: Arc<Config>,
-    parent: WeakAddr<ChannelSupervisor>,
+    broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl Info {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            parent,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
@@ -66,6 +63,10 @@ impl Info {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
+        let info_message: InfoMessage = self.config.serializer.deserialize(&msg.data)?;
+
+        println!("INFO MESSAGE: {:#?}", &info_message);
+
         // TODO: save to registry
         Produces::ok(())
     }
@@ -128,7 +129,10 @@ impl InfoTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        // TODO: save to registry
+        let info_message: InfoMessage = self.config.serializer.deserialize(&msg.data)?;
+
+        println!("INFO MESSAGE (TARGETED): {:#?}", &info_message);
+
         Produces::ok(())
     }
 }
