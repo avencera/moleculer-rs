@@ -5,7 +5,6 @@ use moleculer_rs::{
     service::{Context, EventBuilder, Service},
     ServiceBroker,
 };
-use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -37,9 +36,9 @@ async fn main() -> eyre::Result<()> {
 }
 
 fn print_async(_ctx: Context) -> Result<(), Box<dyn Error>> {
-    println!("Hello from sync");
-    futures_lite::future::block_on(async { hello_from_async().await });
-    println!("Bye from sync");
+    println!("Starting");
+    tokio::spawn(async { hello_from_async().await });
+    println!("Ended");
     Ok(())
 }
 
@@ -49,6 +48,6 @@ fn print_normal(_ctx: Context) -> Result<(), Box<dyn Error>> {
 }
 
 async fn hello_from_async() {
-    sleep(Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Hello from async")
 }
