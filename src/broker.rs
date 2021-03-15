@@ -6,7 +6,7 @@ use log::{debug, error};
 use tokio::task::spawn_blocking;
 
 use crate::{
-    channel::{
+    channels::{
         self,
         messages::{incoming::EventMessage, outgoing},
         ChannelSupervisor,
@@ -20,7 +20,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(transparent)]
-    ChannelError(#[from] channel::Error),
+    ChannelError(#[from] channels::Error),
 
     #[error("Unable to deserialize to EventContext: {0}")]
     EventDeserializeFail(#[from] config::DeserializeError),
@@ -53,7 +53,7 @@ impl Actor for ServiceBroker {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
         self.pid = pid.clone();
 
-        let channel_supervisor = channel::start_supervisor(pid, Arc::clone(&self.config))
+        let channel_supervisor = channels::start_supervisor(pid, Arc::clone(&self.config))
             .await
             .map_err(Error::ChannelError)?;
 
@@ -63,7 +63,7 @@ impl Actor for ServiceBroker {
         self.channel_supervisor = channel_supervisor.clone();
 
         self.pid
-            .send_fut(async move { channel::listen_for_disconnect(channel_supervisor).await });
+            .send_fut(async move { channels::listen_for_disconnect(channel_supervisor).await });
 
         Produces::ok(())
     }

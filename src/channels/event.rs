@@ -1,6 +1,6 @@
 use crate::{
     broker::ServiceBroker,
-    channel::messages::incoming::EventMessage,
+    channels::messages::incoming::EventMessage,
     config::{self, Channel, Config},
     nats::Conn,
 };

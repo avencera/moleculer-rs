@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, error::Error};
 
-use crate::{channel::messages::incoming::EventMessage, ServiceBroker};
+use crate::{channels::messages::incoming::EventMessage, ServiceBroker};
 
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
 pub type EventCallback = fn(Context) -> Result<(), Box<dyn Error>>;

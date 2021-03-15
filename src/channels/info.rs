@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::{ChannelSupervisor, Error};
-use crate::channel::messages::outgoing;
+use crate::channels::messages::outgoing;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
