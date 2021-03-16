@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use act_zero::*;
 use async_trait::async_trait;
-use log::error;
+use log::{error, warn};
 
 use crate::{
     channels::{
@@ -132,7 +132,11 @@ impl ServiceBroker {
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
         if self.node_id != info.sender {
-            self.registry.add_new_node_with_events(info);
+            self.registry.add_new_node_with_events(
+                self.pid.clone(),
+                self.config.heartbeat_timeout,
+                info,
+            );
         }
     }
 
@@ -140,6 +144,14 @@ impl ServiceBroker {
         if self.node_id != disconnect.sender {
             self.registry.remove_node_with_events(disconnect.sender);
         }
+    }
+
+    pub(crate) async fn missed_heartbeat(&mut self, node_name: String) {
+        warn!(
+            "Node {} expectedly disconnected (missed heartbeat)",
+            &node_name
+        );
+        self.registry.remove_node_with_events(node_name);
     }
 
     pub(crate) async fn handle_heartbeat_message(&mut self, heartbeat: HeartbeatMessage) {

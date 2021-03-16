@@ -1,10 +1,21 @@
 use maplit::hashset;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::{Duration, Instant},
+};
 
 use crate::channels::messages::incoming::{Client, HeartbeatMessage, InfoMessage};
 
 pub type EventName = String;
 pub type NodeName = String;
+
+use act_zero::runtimes::tokio::spawn_actor;
+use act_zero::runtimes::tokio::Timer;
+use act_zero::timer::Tick;
+use act_zero::*;
+use async_trait::async_trait;
+
+use super::ServiceBroker;
 
 pub(crate) struct Registry {
     events: HashMap<EventName, HashSet<NodeName>>,
@@ -19,12 +30,18 @@ impl Registry {
         }
     }
 
-    pub(crate) fn add_new_node_with_events(&mut self, info: InfoMessage) {
+    pub(crate) fn add_new_node_with_events(
+        &mut self,
+        broker: Addr<ServiceBroker>,
+        heartbeat_timeout: u32,
+        info: InfoMessage,
+    ) {
         // get or insert node from/into registry
         let node: &mut Node = match self.nodes.get_mut(&info.sender) {
             Some(node) => node,
             None => {
-                let node = Node::from(&info);
+                let node = Node::new(broker, heartbeat_timeout, &info);
+
                 self.nodes.insert(info.sender.clone(), node);
                 self.nodes
                     .get_mut(&info.sender)
@@ -83,12 +100,16 @@ impl Registry {
         let node = self.nodes.get_mut(&heartbeat.sender)?;
         node.cpu = Some(heartbeat.cpu);
 
+        send!(node.node_watcher_pid.received_heartbeat());
+
         Some(())
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Node {
+    node_watcher_pid: Addr<NodeWatcher>,
+
     pub(crate) name: NodeName,
     pub(crate) cpu: Option<f32>,
     pub(crate) ip_list: Vec<String>,
@@ -98,9 +119,13 @@ pub struct Node {
     pub(crate) events: HashSet<EventName>,
 }
 
-impl From<&InfoMessage> for Node {
-    fn from(info: &InfoMessage) -> Self {
+impl Node {
+    fn new(broker: Addr<ServiceBroker>, heartbeat_timeout: u32, info: &InfoMessage) -> Self {
+        let node_watcher =
+            NodeWatcher::new(info.sender.clone(), heartbeat_timeout, broker.downgrade());
+
         Self {
+            node_watcher_pid: spawn_actor(node_watcher),
             name: info.sender.clone(),
             cpu: None,
             ip_list: info.ip_list.clone(),
@@ -109,5 +134,69 @@ impl From<&InfoMessage> for Node {
             instance_id: info.instance_id.clone(),
             events: hashset![],
         }
+    }
+}
+
+#[async_trait]
+impl Actor for NodeWatcher {
+    async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
+        self.pid = pid.downgrade();
+
+        // // Start the timer
+        self.timer.set_timeout_for_weak(
+            self.pid.clone(),
+            Duration::from_secs(self.heartbeat_timeout as u64),
+        );
+
+        Produces::ok(())
+    }
+}
+
+#[async_trait]
+impl Tick for NodeWatcher {
+    async fn tick(&mut self) -> ActorResult<()> {
+        if self.timer.tick() {
+            let now = Instant::now();
+
+            if now.duration_since(self.last_heartbeat).as_secs() >= self.heartbeat_timeout as u64 {
+                // haven't received a heartbeat recently
+                send!(self.broker.missed_heartbeat(self.node_name.clone()))
+            } else {
+                // reschedule timer
+                self.timer.set_timeout_for_weak(
+                    self.pid.clone(),
+                    Duration::from_secs(self.heartbeat_timeout as u64),
+                );
+            }
+        }
+        Produces::ok(())
+    }
+}
+
+struct NodeWatcher {
+    node_name: NodeName,
+    pid: WeakAddr<Self>,
+    broker: WeakAddr<ServiceBroker>,
+    timer: Timer,
+
+    heartbeat_timeout: u32,
+    last_heartbeat: Instant,
+}
+
+impl NodeWatcher {
+    pub fn new(name: NodeName, heartbeat_timeout: u32, broker: WeakAddr<ServiceBroker>) -> Self {
+        Self {
+            node_name: name,
+            pid: WeakAddr::detached(),
+            broker,
+            timer: Timer::default(),
+
+            heartbeat_timeout,
+            last_heartbeat: Instant::now(),
+        }
+    }
+
+    pub async fn received_heartbeat(&mut self) {
+        self.last_heartbeat = Instant::now()
     }
 }
