@@ -4,7 +4,7 @@ use crate::{
     nats::Conn,
 };
 
-use super::{messages::incoming::DisconnectMessage, Error};
+use super::messages::incoming::DisconnectMessage;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;

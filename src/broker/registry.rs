@@ -97,9 +97,9 @@ impl Registry {
                 .events
                 .get_mut(&event_name)
                 // go through the node's events and remove node from each event
-                .and_then(|node_names| {
+                .map(|node_names| {
                     node_names.remove(&node_name);
-                    Some(node_names)
+                    node_names
                 });
 
             // if the event doesn't have any associated nodes remove the event entirely

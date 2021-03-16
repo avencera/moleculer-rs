@@ -2,11 +2,9 @@ use crate::{
     broker::ServiceBroker,
     config::{Channel, Config},
     nats::Conn,
-    service::Service,
 };
 
-use super::{messages::incoming::InfoMessage, ChannelSupervisor, Error};
-use crate::channels::messages::outgoing;
+use super::messages::incoming::InfoMessage;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
