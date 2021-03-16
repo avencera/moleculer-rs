@@ -4,12 +4,11 @@ pub mod config;
 pub mod service;
 
 mod broker;
-mod channel;
+mod channels;
 mod nats;
 
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
-use bytes::Bytes;
 use config::Config;
 use service::Service;
 

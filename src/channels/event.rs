@@ -1,17 +1,23 @@
 use crate::{
-    config::{Channel, Config},
+    broker::ServiceBroker,
+    channels::messages::incoming::EventMessage,
+    config::{self, Channel, Config},
     nats::Conn,
 };
 
-use super::{ChannelSupervisor, Error};
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use config::DeserializeError;
 use log::{debug, error, info};
 use std::sync::Arc;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum Error {}
 
 #[async_trait]
-impl Actor for Disconnect {
+impl Actor for Event {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
         let pid_clone = pid.clone();
         send!(pid_clone.listen(pid));
@@ -19,53 +25,51 @@ impl Actor for Disconnect {
     }
 
     async fn error(&mut self, error: ActorError) -> bool {
-        error!("Disconnect Actor Error: {:?}", error);
+        error!("Event Actor Error: {:?}", error);
 
         // do not stop on actor error
         false
     }
 }
-pub struct Disconnect {
-    parent: WeakAddr<ChannelSupervisor>,
+pub struct Event {
     config: Arc<Config>,
+    broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
-impl Disconnect {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
+impl Event {
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            parent,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
     }
 
     pub async fn listen(&mut self, pid: Addr<Self>) {
-        info!("Listening for DISCONNECT messages");
-
+        info!("Listening for EVENT messages");
         let channel = self
             .conn
-            .subscribe(&Channel::Disconnect.channel_to_string(&self.config))
+            .subscribe(&Channel::Event.channel_to_string(&self.config))
             .await
             .unwrap();
 
         pid.clone().send_fut(async move {
             while let Some(msg) = channel.next().await {
                 match call!(pid.handle_message(msg)).await {
-                    Ok(_) => debug!("Successfully handled DISCONNECT message"),
-                    Err(e) => error!("Unable to handle DISCONNECT message: {}", e),
+                    Ok(_) => debug!("Successfully handled EVENT message"),
+                    Err(e) => error!("Unable to handle EVENT message: {}", e),
                 }
             }
         })
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        // let disconnect_msg: DisconnectMessageOwned = self.config.serializer.deserialize(&msg.data)?;
-        // do nothing with incoming disconnect messages for now
+        let event_context: Result<EventMessage, DeserializeError> =
+            self.config.serializer.deserialize(&msg.data);
+
+        send!(self.broker.handle_incoming_event(event_context));
+
         Produces::ok(())
     }
 }

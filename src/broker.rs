@@ -1,14 +1,18 @@
+mod registry;
+
 use std::{collections::HashMap, sync::Arc};
 
 use act_zero::*;
 use async_trait::async_trait;
-use log::{debug, error};
-use tokio::task::spawn_blocking;
+use log::{error, warn};
 
 use crate::{
-    channel::{
+    channels::{
         self,
-        messages::{incoming::EventMessage, outgoing},
+        messages::{
+            incoming::{DisconnectMessage, EventMessage, HeartbeatMessage, InfoMessage},
+            outgoing::{self},
+        },
         ChannelSupervisor,
     },
     config::{self, Channel, DeserializeError, Serializer},
@@ -17,10 +21,12 @@ use crate::{
 
 use thiserror::Error;
 
+use self::registry::Registry;
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(transparent)]
-    ChannelError(#[from] channel::Error),
+    ChannelError(#[from] channels::Error),
 
     #[error("Unable to deserialize to EventContext: {0}")]
     EventDeserializeFail(#[from] config::DeserializeError),
@@ -36,16 +42,41 @@ pub enum Error {
 }
 
 pub struct ServiceBroker {
-    pub namespace: String,
-    pub node_id: String,
-    pub instance_id: String,
-    pub services: Vec<Service>,
-    pub events: HashMap<String, Event>,
-    pub serializer: Serializer,
+    pub(crate) namespace: String,
+    pub(crate) node_id: String,
+    pub(crate) instance_id: String,
+    pub(crate) serializer: Serializer,
+    pub(crate) services: Vec<Service>,
+    pub(crate) events: Events,
+
+    pub(crate) registry: Registry,
 
     pid: Addr<Self>,
     channel_supervisor: Addr<ChannelSupervisor>,
     config: Arc<config::Config>,
+}
+
+pub struct Events(HashMap<String, Event>);
+
+impl Events {
+    fn new() -> Self {
+        Events(HashMap::new())
+    }
+
+    fn get(&self, key: &str) -> Option<&Event> {
+        self.0.get(key)
+    }
+}
+
+impl From<&Vec<Service>> for Events {
+    fn from(services: &Vec<Service>) -> Self {
+        Events(
+            services
+                .iter()
+                .flat_map(|service| service.events.clone())
+                .collect(),
+        )
+    }
 }
 
 #[async_trait]
@@ -53,7 +84,7 @@ impl Actor for ServiceBroker {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
         self.pid = pid.clone();
 
-        let channel_supervisor = channel::start_supervisor(pid, Arc::clone(&self.config))
+        let channel_supervisor = channels::start_supervisor(pid, Arc::clone(&self.config))
             .await
             .map_err(Error::ChannelError)?;
 
@@ -63,7 +94,7 @@ impl Actor for ServiceBroker {
         self.channel_supervisor = channel_supervisor.clone();
 
         self.pid
-            .send_fut(async move { channel::listen_for_disconnect(channel_supervisor).await });
+            .send_fut(async move { channels::listen_for_disconnect(channel_supervisor).await });
 
         Produces::ok(())
     }
@@ -75,14 +106,17 @@ impl Actor for ServiceBroker {
     }
 }
 impl ServiceBroker {
-    pub fn new(config: config::Config) -> Self {
+    pub(crate) fn new(config: config::Config) -> Self {
         Self {
             namespace: config.namespace.clone(),
             node_id: config.node_id.clone(),
             instance_id: config.instance_id.clone(),
-            services: vec![],
-            events: HashMap::new(),
             serializer: config.serializer.clone(),
+
+            services: vec![],
+
+            registry: Registry::new(),
+            events: Events::new(),
 
             pid: Addr::detached(),
             channel_supervisor: Addr::detached(),
@@ -96,16 +130,39 @@ impl ServiceBroker {
             .await
     }
 
+    pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
+        if self.node_id != info.sender {
+            self.registry.add_new_node_with_events(
+                self.pid.clone(),
+                self.config.heartbeat_timeout,
+                info,
+            );
+        }
+    }
+
+    pub(crate) async fn handle_disconnect_message(&mut self, disconnect: DisconnectMessage) {
+        if self.node_id != disconnect.sender {
+            self.registry.remove_node_with_events(disconnect.sender);
+        }
+    }
+
+    pub(crate) async fn missed_heartbeat(&mut self, node_name: String) {
+        warn!(
+            "Node {} expectedly disconnected (missed heartbeat)",
+            &node_name
+        );
+        self.registry.remove_node_with_events(node_name);
+    }
+
+    pub(crate) async fn handle_heartbeat_message(&mut self, heartbeat: HeartbeatMessage) {
+        if self.node_id != heartbeat.sender {
+            self.registry.update_node(heartbeat);
+        }
+    }
+
     pub(crate) async fn add_service(&mut self, service: Service) {
         self.services.push(service);
-
-        let events = self
-            .services
-            .iter()
-            .flat_map(|service| service.events.clone())
-            .collect();
-
-        self.events = events;
+        self.events = (&self.services).into();
     }
 
     pub(crate) async fn add_services(&mut self, services: Vec<Service>) {

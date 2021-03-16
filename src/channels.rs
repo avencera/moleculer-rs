@@ -31,7 +31,7 @@ use self::{
     event::Event,
     heartbeat::Heartbeat,
     info::{Info, InfoTargeted},
-    messages::outgoing::DisconnectMessage,
+    messages::{incoming::InfoMessage, outgoing::DisconnectMessage},
     ping::{Ping, PingTargeted},
     pong::Pong,
 };
@@ -136,8 +136,15 @@ impl ChannelSupervisor {
     async fn start_listeners(&mut self) -> ActorResult<()> {
         let broker_pid = self.broker.clone().downgrade();
 
-        self.heartbeat =
-            spawn_actor(Heartbeat::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.heartbeat = spawn_actor(
+            Heartbeat::new(
+                self.pid.clone(),
+                broker_pid.clone(),
+                &self.config,
+                &self.conn,
+            )
+            .await,
+        );
 
         self.ping = spawn_actor(Ping::new(self.pid.clone(), &self.config, &self.conn).await);
 
@@ -147,11 +154,11 @@ impl ChannelSupervisor {
         self.pong = spawn_actor(Pong::new(self.pid.clone(), &self.config, &self.conn).await);
 
         self.disconnect =
-            spawn_actor(Disconnect::new(self.pid.clone(), &self.config, &self.conn).await);
+            spawn_actor(Disconnect::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.discover = spawn_actor(
             Discover::new(
-                self.broker.clone().downgrade(),
+                broker_pid.clone(),
                 self.pid.clone(),
                 &self.config,
                 &self.conn,
@@ -162,18 +169,16 @@ impl ChannelSupervisor {
         self.discover_targeted =
             spawn_actor(DiscoverTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
-        self.info = spawn_actor(Info::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.info = spawn_actor(Info::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.info_targeted =
-            spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
+            spawn_actor(InfoTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.event = spawn_actor(Event::new(broker_pid, &self.config, &self.conn).await);
 
         Produces::ok(())
     }
 
-    // used by DiscoverTargeted once its started
-    // should only broadcast discover message if listening for the return messages
     pub async fn broadcast_discover(&self) {
         send!(self.discover.broadcast());
     }

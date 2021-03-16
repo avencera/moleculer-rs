@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, error::Error};
 
-use crate::{channel::messages::incoming::EventMessage, ServiceBroker};
+use crate::{channels::messages::incoming::EventMessage, ServiceBroker};
 
 pub type ActionCallback = fn(Context) -> Option<Bytes>;
 pub type EventCallback = fn(Context) -> Result<(), Box<dyn Error>>;
@@ -11,7 +11,8 @@ pub type EventCallback = fn(Context) -> Result<(), Box<dyn Error>>;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Action {
     name: String,
-    params: HashMap<String, String>,
+    #[serde(default)]
+    params: Option<Value>,
     #[serde(skip)]
     callback: Option<ActionCallback>,
 }
@@ -19,14 +20,15 @@ pub struct Action {
 #[derive(Default, Debug)]
 pub struct EventBuilder {
     name: String,
-    params: HashMap<String, String>,
+    params: Option<Value>,
     callback: Option<EventCallback>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     name: String,
-    params: HashMap<String, String>,
+    #[serde(default)]
+    params: Option<Value>,
     #[serde(skip)]
     pub callback: Option<EventCallback>,
 }
@@ -39,8 +41,8 @@ impl EventBuilder {
         }
     }
 
-    pub fn add_params(mut self, params: HashMap<String, String>) -> Self {
-        self.params = params;
+    pub fn add_params(mut self, params: Value) -> Self {
+        self.params = Some(params);
         self
     }
 
@@ -64,8 +66,11 @@ pub struct Service {
     name: String,
     version: Option<i32>,
 
+    #[serde(default)]
+    #[serde(skip_deserializing)]
     settings: HashMap<String, String>,
-    metadata: HashMap<String, String>,
+    #[serde(default)]
+    metadata: Option<Value>,
 
     actions: HashMap<String, Action>,
     pub(crate) events: HashMap<String, Event>,
