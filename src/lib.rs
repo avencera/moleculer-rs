@@ -43,9 +43,13 @@ impl ServiceBroker {
         self.addr.termination().await
     }
 
-    pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {}
+    pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+        send!(self.addr.emit(event.into(), params))
+    }
 
-    pub fn broadcast<S: Into<String>>(&self, event: S, params: Vec<u8>) {}
+    pub fn broadcast<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+        send!(self.addr.broadcast(event.into(), params))
+    }
 }
 
 impl From<Addr<broker::ServiceBroker>> for ServiceBroker {

@@ -124,11 +124,12 @@ impl ServiceBroker {
         }
     }
 
+    // exposed publicly via crate::ServiceBroker
+    pub(crate) async fn emit(&self, event_name: String, params: Vec<u8>) {}
+
+    pub(crate) async fn broadcast(&self, event_name: String, params: Vec<u8>) {}
+
     // private
-    async fn broadcast_info(&self) -> ActorResult<()> {
-        self.publish_info_to_channel(Channel::Info.channel_to_string(&self.config))
-            .await
-    }
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
         if self.node_id != info.sender {
@@ -201,5 +202,10 @@ impl ServiceBroker {
         callback(event_context).map_err(|err| Error::EventCallbackFailed(err.to_string()))?;
 
         Produces::ok(())
+    }
+
+    async fn broadcast_info(&self) -> ActorResult<()> {
+        self.publish_info_to_channel(Channel::Info.channel_to_string(&self.config))
+            .await
     }
 }

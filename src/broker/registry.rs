@@ -30,6 +30,11 @@ impl Registry {
         }
     }
 
+    pub(crate) fn get_node_name_for_event(&self, event_name: &EventName) -> Option<NodeName> {
+        let event_nodes = self.events.get(event_name)?;
+        None
+    }
+
     pub(crate) fn add_new_node_with_events(
         &mut self,
         broker: Addr<ServiceBroker>,
