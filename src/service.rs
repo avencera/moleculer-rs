@@ -67,7 +67,8 @@ pub struct Service {
     version: Option<i32>,
 
     #[serde(default)]
-    settings: Option<Value>,
+    #[serde(skip_deserializing)]
+    settings: HashMap<String, String>,
     #[serde(default)]
     metadata: Option<Value>,
 
