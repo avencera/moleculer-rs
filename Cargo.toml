@@ -38,6 +38,7 @@ sysinfo = "0.16"
 
 # utils
 ctrlc = {version = "3.0", features = ["termination"]}
+maplit = "1.0"
 strum = {version = "0.20", features = ["derive"]}
 uuid = {version = "0.8", features = ["serde", "v4"]}
 

@@ -1,9 +1,10 @@
 use crate::{
+    broker::ServiceBroker,
     config::{Channel, Config},
     nats::Conn,
 };
 
-use super::{ChannelSupervisor, Error};
+use super::{messages::incoming::DisconnectMessage, Error};
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
@@ -26,19 +27,15 @@ impl Actor for Disconnect {
     }
 }
 pub struct Disconnect {
-    parent: WeakAddr<ChannelSupervisor>,
+    broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     conn: Conn,
 }
 
 impl Disconnect {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            parent,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
@@ -64,8 +61,10 @@ impl Disconnect {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        // let disconnect_msg: DisconnectMessageOwned = self.config.serializer.deserialize(&msg.data)?;
-        // do nothing with incoming disconnect messages for now
+        let disconnect_msg: DisconnectMessage = self.config.serializer.deserialize(&msg.data)?;
+
+        send!(self.broker.handle_disconnect_message(disconnect_msg));
+
         Produces::ok(())
     }
 }

@@ -147,7 +147,7 @@ impl ChannelSupervisor {
         self.pong = spawn_actor(Pong::new(self.pid.clone(), &self.config, &self.conn).await);
 
         self.disconnect =
-            spawn_actor(Disconnect::new(self.pid.clone(), &self.config, &self.conn).await);
+            spawn_actor(Disconnect::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.discover = spawn_actor(
             Discover::new(
