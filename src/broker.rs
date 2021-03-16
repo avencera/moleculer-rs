@@ -1,7 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+mod registry;
+
+use std::{collections::HashMap, sync::Arc};
 
 use act_zero::*;
 use async_trait::async_trait;
@@ -11,7 +10,7 @@ use crate::{
     channels::{
         self,
         messages::{
-            incoming::{Client, EventMessage, InfoMessage},
+            incoming::{EventMessage, InfoMessage},
             outgoing::{self},
         },
         ChannelSupervisor,
@@ -21,6 +20,8 @@ use crate::{
 };
 
 use thiserror::Error;
+
+use self::registry::Registry;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -45,23 +46,21 @@ pub struct ServiceBroker {
     pub(crate) node_id: String,
     pub(crate) instance_id: String,
     pub(crate) serializer: Serializer,
-
     pub(crate) services: Vec<Service>,
+    pub(crate) events: Events,
 
-    pub(crate) events: InternalEvents,
-
-    pub(crate) external_events: ExternalEvents,
+    pub(crate) registry: Registry,
 
     pid: Addr<Self>,
     channel_supervisor: Addr<ChannelSupervisor>,
     config: Arc<config::Config>,
 }
 
-pub struct InternalEvents(HashMap<String, Event>);
+pub struct Events(HashMap<String, Event>);
 
-impl InternalEvents {
+impl Events {
     fn new() -> Self {
-        InternalEvents(HashMap::new())
+        Events(HashMap::new())
     }
 
     fn get(&self, key: &str) -> Option<&Event> {
@@ -69,81 +68,14 @@ impl InternalEvents {
     }
 }
 
-impl From<&Vec<Service>> for InternalEvents {
+impl From<&Vec<Service>> for Events {
     fn from(services: &Vec<Service>) -> Self {
-        InternalEvents(
+        Events(
             services
                 .iter()
                 .flat_map(|service| service.events.clone())
                 .collect(),
         )
-    }
-}
-
-pub type EventName = String;
-pub type NodeName = String;
-pub struct ExternalEvents {
-    events: HashMap<EventName, HashSet<NodeName>>,
-    nodes: HashMap<NodeName, Node>,
-}
-
-impl ExternalEvents {
-    fn new() -> Self {
-        Self {
-            events: HashMap::new(),
-            nodes: HashMap::new(),
-        }
-    }
-
-    fn add_new_events(&mut self, info: InfoMessage) {
-        // get or insert node
-        let node = self
-            .nodes
-            .entry(info.sender.clone())
-            .or_insert_with(|| Node::from(&info));
-
-        // get event_names from info message
-        let event_names = info
-            .services
-            .iter()
-            .flat_map(|service| service.events.keys().clone());
-
-        // insert event names into event HashSet
-        for event_name in event_names {
-            match self.events.get_mut(event_name) {
-                Some(values) => {
-                    values.insert(node.name.clone());
-                }
-                None => {
-                    let mut values = HashSet::new();
-                    values.insert(node.name.clone());
-                    self.events.insert(node.name.clone(), values);
-                }
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Node {
-    pub(crate) name: NodeName,
-    pub(crate) cpu: Option<f32>,
-    pub(crate) ip_list: Vec<String>,
-    pub(crate) hostname: String,
-    pub(crate) client: Client,
-    pub(crate) instance_id: String,
-}
-
-impl From<&InfoMessage> for Node {
-    fn from(info: &InfoMessage) -> Self {
-        Self {
-            name: info.sender.clone(),
-            cpu: None,
-            ip_list: info.ip_list.clone(),
-            hostname: info.hostname.clone(),
-            client: info.client.clone(),
-            instance_id: info.instance_id.clone(),
-        }
     }
 }
 
@@ -183,8 +115,8 @@ impl ServiceBroker {
 
             services: vec![],
 
-            events: InternalEvents::new(),
-            external_events: ExternalEvents::new(),
+            registry: Registry::new(),
+            events: Events::new(),
 
             pid: Addr::detached(),
             channel_supervisor: Addr::detached(),
@@ -199,7 +131,7 @@ impl ServiceBroker {
     }
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
-        self.external_events.add_new_events(info);
+        self.registry.add_new_events(info);
     }
 
     pub(crate) async fn add_service(&mut self, service: Service) {
