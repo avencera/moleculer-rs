@@ -1,3 +1,4 @@
+mod data_structures;
 mod util;
 
 pub mod config;

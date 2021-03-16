@@ -1,10 +1,14 @@
+use crate::qset;
 use maplit::hashset;
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
 
-use crate::channels::messages::incoming::{Client, HeartbeatMessage, InfoMessage};
+use crate::{
+    channels::messages::incoming::{Client, HeartbeatMessage, InfoMessage},
+    data_structures::QueueSet,
+};
 
 pub type EventName = String;
 pub type NodeName = String;
@@ -18,7 +22,7 @@ use async_trait::async_trait;
 use super::ServiceBroker;
 
 pub(crate) struct Registry {
-    events: HashMap<EventName, HashSet<NodeName>>,
+    events: HashMap<EventName, QueueSet<NodeName>>,
     nodes: HashMap<NodeName, Node>,
 }
 
@@ -70,7 +74,7 @@ impl Registry {
                 // first instance of event, create event name entry with node_name
                 None => {
                     self.events
-                        .insert(event_name.clone(), hashset![node.name.clone()]);
+                        .insert(event_name.clone(), qset![node.name.clone()]);
                 }
             }
 
