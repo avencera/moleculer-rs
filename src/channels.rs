@@ -31,7 +31,7 @@ use self::{
     event::Event,
     heartbeat::Heartbeat,
     info::{Info, InfoTargeted},
-    messages::outgoing::DisconnectMessage,
+    messages::{incoming::InfoMessage, outgoing::DisconnectMessage},
     ping::{Ping, PingTargeted},
     pong::Pong,
 };
@@ -165,7 +165,7 @@ impl ChannelSupervisor {
         self.info = spawn_actor(Info::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.info_targeted =
-            spawn_actor(InfoTargeted::new(self.pid.clone(), &self.config, &self.conn).await);
+            spawn_actor(InfoTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
         self.event = spawn_actor(Event::new(broker_pid, &self.config, &self.conn).await);
 

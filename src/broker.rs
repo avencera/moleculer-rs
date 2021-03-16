@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use act_zero::*;
 use async_trait::async_trait;
@@ -8,7 +11,7 @@ use crate::{
     channels::{
         self,
         messages::{
-            incoming::{Client, EventMessage},
+            incoming::{Client, EventMessage, InfoMessage},
             outgoing::{self},
         },
         ChannelSupervisor,
@@ -45,7 +48,8 @@ pub struct ServiceBroker {
 
     pub(crate) services: Vec<Service>,
 
-    pub(crate) internal_events: InternalEvents,
+    pub(crate) events: InternalEvents,
+
     pub(crate) external_events: ExternalEvents,
 
     pid: Addr<Self>,
@@ -76,21 +80,71 @@ impl From<&Vec<Service>> for InternalEvents {
     }
 }
 
-pub struct ExternalEvents(HashMap<String, Vec<Node>>);
+pub type EventName = String;
+pub type NodeName = String;
+pub struct ExternalEvents {
+    events: HashMap<EventName, HashSet<NodeName>>,
+    nodes: HashMap<NodeName, Node>,
+}
 
 impl ExternalEvents {
     fn new() -> Self {
-        ExternalEvents(HashMap::new())
+        Self {
+            events: HashMap::new(),
+            nodes: HashMap::new(),
+        }
+    }
+
+    fn add_new_events(&mut self, info: InfoMessage) {
+        // get or insert node
+        let node = self
+            .nodes
+            .entry(info.sender.clone())
+            .or_insert_with(|| Node::from(&info));
+
+        // get event_names from info message
+        let event_names = info
+            .services
+            .iter()
+            .flat_map(|service| service.events.keys().clone());
+
+        // insert event names into event HashSet
+        for event_name in event_names {
+            match self.events.get_mut(event_name) {
+                Some(values) => {
+                    values.insert(node.name.clone());
+                }
+                None => {
+                    let mut values = HashSet::new();
+                    values.insert(node.name.clone());
+                    self.events.insert(node.name.clone(), values);
+                }
+            }
+        }
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Node {
-    pub(crate) name: String,
+    pub(crate) name: NodeName,
     pub(crate) cpu: Option<f32>,
     pub(crate) ip_list: Vec<String>,
     pub(crate) hostname: String,
     pub(crate) client: Client,
     pub(crate) instance_id: String,
+}
+
+impl From<&InfoMessage> for Node {
+    fn from(info: &InfoMessage) -> Self {
+        Self {
+            name: info.sender.clone(),
+            cpu: None,
+            ip_list: info.ip_list.clone(),
+            hostname: info.hostname.clone(),
+            client: info.client.clone(),
+            instance_id: info.instance_id.clone(),
+        }
+    }
 }
 
 #[async_trait]
@@ -129,7 +183,7 @@ impl ServiceBroker {
 
             services: vec![],
 
-            internal_events: InternalEvents::new(),
+            events: InternalEvents::new(),
             external_events: ExternalEvents::new(),
 
             pid: Addr::detached(),
@@ -144,11 +198,13 @@ impl ServiceBroker {
             .await
     }
 
+    pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
+        self.external_events.add_new_events(info);
+    }
+
     pub(crate) async fn add_service(&mut self, service: Service) {
         self.services.push(service);
-
-        let events = (&self.services).into();
-        self.internal_events = events;
+        self.events = (&self.services).into();
     }
 
     pub(crate) async fn add_services(&mut self, services: Vec<Service>) {
@@ -173,7 +229,7 @@ impl ServiceBroker {
         let event_message = event_message?;
 
         let event = self
-            .internal_events
+            .events
             .get(&event_message.event)
             .ok_or_else(|| Error::EventNotFound(event_message.event.clone()))?;
 

@@ -6,7 +6,7 @@ pub mod incoming {
 
     use crate::service::Service;
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct Client {
         #[serde(rename = "type")]
@@ -39,19 +39,19 @@ pub mod incoming {
     #[derive(Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct InfoMessage {
-        ver: String,
-        sender: String,
+        pub ver: String,
+        pub sender: String,
 
-        services: Vec<Service>,
-        ip_list: Vec<String>,
-        hostname: String,
-        client: Client,
+        pub services: Vec<Service>,
+        pub ip_list: Vec<String>,
+        pub hostname: String,
+        pub client: Client,
 
         #[serde(rename = "instanceID")]
-        instance_id: String,
+        pub instance_id: String,
 
-        config: HashMap<String, String>,
-        metadata: HashMap<String, String>,
+        pub config: HashMap<String, String>,
+        pub metadata: HashMap<String, String>,
     }
 
     #[derive(Deserialize, Debug)]

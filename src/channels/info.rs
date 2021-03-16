@@ -64,10 +64,8 @@ impl Info {
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let info_message: InfoMessage = self.config.serializer.deserialize(&msg.data)?;
+        send!(self.broker.handle_info_message(info_message));
 
-        println!("INFO MESSAGE: {:#?}", &info_message);
-
-        // TODO: save to registry
         Produces::ok(())
     }
 }
@@ -89,18 +87,14 @@ impl Actor for InfoTargeted {
 }
 pub struct InfoTargeted {
     config: Arc<Config>,
-    parent: WeakAddr<ChannelSupervisor>,
+    broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl InfoTargeted {
-    pub async fn new(
-        parent: WeakAddr<ChannelSupervisor>,
-        config: &Arc<Config>,
-        conn: &Conn,
-    ) -> Self {
+    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            parent,
+            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
         }
@@ -130,8 +124,7 @@ impl InfoTargeted {
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let info_message: InfoMessage = self.config.serializer.deserialize(&msg.data)?;
-
-        println!("INFO MESSAGE (TARGETED): {:#?}", &info_message);
+        send!(self.broker.handle_info_message(info_message));
 
         Produces::ok(())
     }
