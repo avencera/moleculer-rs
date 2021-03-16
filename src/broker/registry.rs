@@ -1,7 +1,7 @@
 use maplit::hashset;
 use std::collections::{HashMap, HashSet};
 
-use crate::channels::messages::incoming::{Client, InfoMessage};
+use crate::channels::messages::incoming::{Client, HeartbeatMessage, InfoMessage};
 
 pub type EventName = String;
 pub type NodeName = String;
@@ -75,6 +75,13 @@ impl Registry {
                 self.events.remove(&event_name);
             }
         }
+
+        Some(())
+    }
+
+    pub(crate) fn update_node(&mut self, heartbeat: HeartbeatMessage) -> Option<()> {
+        let node = self.nodes.get_mut(&heartbeat.sender)?;
+        node.cpu = Some(heartbeat.cpu);
 
         Some(())
     }

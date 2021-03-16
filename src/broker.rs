@@ -10,7 +10,7 @@ use crate::{
     channels::{
         self,
         messages::{
-            incoming::{DisconnectMessage, EventMessage, InfoMessage},
+            incoming::{DisconnectMessage, EventMessage, HeartbeatMessage, InfoMessage},
             outgoing::{self},
         },
         ChannelSupervisor,
@@ -139,6 +139,12 @@ impl ServiceBroker {
     pub(crate) async fn handle_disconnect_message(&mut self, disconnect: DisconnectMessage) {
         if self.node_id != disconnect.sender {
             self.registry.remove_node_with_events(disconnect.sender);
+        }
+    }
+
+    pub(crate) async fn handle_heartbeat_message(&mut self, heartbeat: HeartbeatMessage) {
+        if self.node_id != heartbeat.sender {
+            self.registry.update_node(heartbeat);
         }
     }
 

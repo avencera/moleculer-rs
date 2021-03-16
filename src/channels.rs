@@ -136,8 +136,15 @@ impl ChannelSupervisor {
     async fn start_listeners(&mut self) -> ActorResult<()> {
         let broker_pid = self.broker.clone().downgrade();
 
-        self.heartbeat =
-            spawn_actor(Heartbeat::new(self.pid.clone(), &self.config, &self.conn).await);
+        self.heartbeat = spawn_actor(
+            Heartbeat::new(
+                self.pid.clone(),
+                broker_pid.clone(),
+                &self.config,
+                &self.conn,
+            )
+            .await,
+        );
 
         self.ping = spawn_actor(Ping::new(self.pid.clone(), &self.config, &self.conn).await);
 

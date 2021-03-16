@@ -1,14 +1,15 @@
 use crate::{
+    broker::ServiceBroker,
     config::{Channel, Config},
     nats::Conn,
 };
 
-use super::messages::outgoing::HeartbeatMessage;
-use super::{ChannelSupervisor, Error};
+use super::messages::{incoming, outgoing};
+use super::ChannelSupervisor;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::*;
-use async_nats::{Message, Subscription};
+use async_nats::Message;
 use async_trait::async_trait;
 use log::{debug, error, info};
 use std::{sync::Arc, time::Duration};
@@ -20,6 +21,7 @@ pub struct Heartbeat {
     timer: Timer,
     conn: Conn,
     parent: Addr<ChannelSupervisor>,
+    broker: WeakAddr<ServiceBroker>,
     heartbeat_interval: u32,
     system: sysinfo::System,
 }
@@ -68,6 +70,7 @@ impl Tick for Heartbeat {
 impl Heartbeat {
     pub async fn new(
         parent: WeakAddr<ChannelSupervisor>,
+        broker: WeakAddr<ServiceBroker>,
         config: &Arc<Config>,
         conn: &Conn,
     ) -> Self {
@@ -75,6 +78,7 @@ impl Heartbeat {
             pid: Addr::detached(),
             config: Arc::clone(config),
             parent: parent.upgrade(),
+            broker,
             conn: conn.clone(),
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
@@ -101,15 +105,17 @@ impl Heartbeat {
         })
     }
 
-    async fn handle_message(&self, _msg: Message) -> ActorResult<()> {
-        // TODO: handle and save to registry
-        // let heartbeat_msg: HeartbeatMessageOwned = self.config.serializer.deserialize(&msg.data)?;
-        // do nothing with incoming heartbeat messages for now
+    async fn handle_message(&self, msg: Message) -> ActorResult<()> {
+        let heartbeat: incoming::HeartbeatMessage =
+            self.config.serializer.deserialize(&msg.data)?;
+
+        send!(self.broker.handle_heartbeat_message(heartbeat));
+
         Produces::ok(())
     }
 
     async fn send_heartbeat(&self) -> ActorResult<()> {
-        let msg = HeartbeatMessage::new(
+        let msg = outgoing::HeartbeatMessage::new(
             &self.config.node_id,
             self.system.get_global_processor_info().get_cpu_usage(),
         );
