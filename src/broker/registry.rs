@@ -34,9 +34,15 @@ impl Registry {
         }
     }
 
-    pub(crate) fn get_node_name_for_event(&self, event_name: &EventName) -> Option<NodeName> {
+    pub(crate) fn get_all_nodes_for_event(&self, event_name: &EventName) -> Option<Vec<NodeName>> {
         let event_nodes = self.events.get(event_name)?;
-        None
+
+        Some(event_nodes.iter().cloned().collect())
+    }
+
+    pub(crate) fn get_node_name_for_event(&mut self, event_name: &EventName) -> Option<NodeName> {
+        let event_nodes = self.events.get_mut(event_name)?;
+        event_nodes.get_round_robin()
     }
 
     pub(crate) fn add_new_node_with_events(

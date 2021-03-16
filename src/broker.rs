@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use act_zero::*;
 use async_trait::async_trait;
 use log::{error, warn};
+use serde_json::Value;
 
 use crate::{
     channels::{
@@ -39,6 +40,9 @@ pub enum Error {
 
     #[error("Call back function failed to complete: {0}")]
     EventCallbackFailed(String),
+
+    #[error("Node not found for ('{0}') event")]
+    NodeNotFound(String),
 }
 
 pub struct ServiceBroker {
@@ -125,9 +129,41 @@ impl ServiceBroker {
     }
 
     // exposed publicly via crate::ServiceBroker
-    pub(crate) async fn emit(&self, event_name: String, params: Vec<u8>) {}
+    pub(crate) async fn emit(&mut self, event_name: String, params: Value) -> ActorResult<()> {
+        let node_name = self
+            .registry
+            .get_node_name_for_event(&event_name)
+            .ok_or_else(|| Error::NodeNotFound(event_name.clone()))?;
 
-    pub(crate) async fn broadcast(&self, event_name: String, params: Vec<u8>) {}
+        let node_event_channel = Channel::Event.external_channel(&self.config, node_name);
+
+        let message = outgoing::EventMessage::new_for_emit(&self.config, &event_name, params);
+
+        send!(self
+            .channel_supervisor
+            .publish_to_channel(node_event_channel, serde_json::to_vec(&message)?));
+
+        Produces::ok(())
+    }
+
+    pub(crate) async fn broadcast(&self, event_name: String, params: Value) -> ActorResult<()> {
+        let node_names = self
+            .registry
+            .get_all_nodes_for_event(&event_name)
+            .ok_or_else(|| Error::NodeNotFound(event_name.clone()))?;
+
+        let message = outgoing::EventMessage::new_for_broadcast(&self.config, &event_name, params);
+
+        for node_name in node_names {
+            let node_event_channel = Channel::Event.external_channel(&self.config, node_name);
+
+            send!(self
+                .channel_supervisor
+                .publish_to_channel(node_event_channel, serde_json::to_vec(&message)?));
+        }
+
+        Produces::ok(())
+    }
 
     // private
 

@@ -105,8 +105,14 @@ pub mod outgoing {
     use std::{collections::HashMap, time::SystemTime};
 
     use super::incoming::PingMessage;
-    use crate::{built_info, config::Config, service::Service};
+    use crate::{
+        built_info,
+        config::Config,
+        service::{Context, Service},
+    };
     use serde::Serialize;
+    use serde_json::{json, Value};
+    use uuid::Uuid;
 
     #[derive(Serialize, Debug)]
     #[serde(rename_all = "camelCase")]
@@ -225,6 +231,78 @@ pub mod outgoing {
 
                 config: HashMap::new(),
                 metadata: HashMap::new(),
+            }
+        }
+    }
+
+    #[derive(Serialize, Debug)]
+    pub struct EventMessage<'a> {
+        pub id: String,
+        pub sender: &'a str,
+        pub ver: &'static str,
+
+        pub event: &'a str,
+
+        #[serde(default)]
+        pub data: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+        pub level: i32,
+
+        #[serde(default)]
+        pub tracing: Option<bool>,
+
+        #[serde(rename = "parentID", default)]
+        pub parent_id: &'a Option<String>,
+
+        #[serde(rename = "requestID", default)]
+        pub request_id: &'a Option<String>,
+
+        #[serde(rename = "caller", default)]
+        pub caller: &'a Option<String>,
+
+        #[serde(default)]
+        pub stream: Option<bool>,
+
+        #[serde(default)]
+        pub seq: Option<i32>,
+
+        #[serde(default)]
+        pub groups: Option<Vec<String>>,
+
+        #[serde(default)]
+        pub broadcast: Option<bool>,
+    }
+
+    impl<'a> EventMessage<'a> {
+        pub fn new_for_emit(config: &'a Config, event: &'a str, params: Value) -> Self {
+            Self {
+                event,
+
+                ver: "4",
+                id: Uuid::new_v4().to_string(),
+                sender: &config.node_id,
+                data: params,
+                meta: json!({}),
+                level: 1,
+
+                tracing: None,
+                parent_id: &None,
+                request_id: &None,
+
+                caller: &None,
+                stream: None,
+                seq: None,
+                groups: None,
+                broadcast: Some(false),
+            }
+        }
+
+        pub fn new_for_broadcast(config: &'a Config, event: &'a str, params: Value) -> Self {
+            Self {
+                broadcast: Some(true),
+                ..EventMessage::new_for_emit(config, event, params)
             }
         }
     }

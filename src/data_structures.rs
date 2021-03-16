@@ -2,6 +2,7 @@ use std::cmp::Eq;
 use std::collections::{HashSet, VecDeque};
 use std::hash::Hash;
 
+#[derive(Debug)]
 pub struct QueueSet<T> {
     set: HashSet<T>,
     queue: VecDeque<T>,
@@ -33,6 +34,16 @@ where
 
     pub(crate) fn len(&mut self) -> usize {
         self.queue.len()
+    }
+
+    pub(crate) fn iter(&self) -> std::collections::vec_deque::Iter<T> {
+        self.queue.iter()
+    }
+
+    pub(crate) fn get_round_robin(&mut self) -> Option<T> {
+        let item = self.queue.pop_front()?;
+        self.queue.push_back(item.clone());
+        Some(item)
     }
 }
 

@@ -11,6 +11,7 @@ mod nats;
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use config::Config;
+use serde_json::Value;
 use service::Service;
 
 pub(crate) mod built_info {
@@ -44,11 +45,11 @@ impl ServiceBroker {
         self.addr.termination().await
     }
 
-    pub fn emit<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+    pub fn emit<S: Into<String>>(&self, event: S, params: Value) {
         send!(self.addr.emit(event.into(), params))
     }
 
-    pub fn broadcast<S: Into<String>>(&self, event: S, params: Vec<u8>) {
+    pub fn broadcast<S: Into<String>>(&self, event: S, params: Value) {
         send!(self.addr.broadcast(event.into(), params))
     }
 }
