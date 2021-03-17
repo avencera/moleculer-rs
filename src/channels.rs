@@ -31,7 +31,7 @@ use self::{
     event::Event,
     heartbeat::Heartbeat,
     info::{Info, InfoTargeted},
-    messages::{incoming::InfoMessage, outgoing::DisconnectMessage},
+    messages::outgoing::DisconnectMessage,
     ping::{Ping, PingTargeted},
     pong::Pong,
 };

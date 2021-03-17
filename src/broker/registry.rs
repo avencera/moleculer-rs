@@ -1,10 +1,14 @@
+use crate::qset;
 use maplit::hashset;
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
 
-use crate::channels::messages::incoming::{Client, HeartbeatMessage, InfoMessage};
+use crate::{
+    channels::messages::incoming::{Client, HeartbeatMessage, InfoMessage},
+    data_structures::QueueSet,
+};
 
 pub type EventName = String;
 pub type NodeName = String;
@@ -18,7 +22,7 @@ use async_trait::async_trait;
 use super::ServiceBroker;
 
 pub(crate) struct Registry {
-    events: HashMap<EventName, HashSet<NodeName>>,
+    events: HashMap<EventName, QueueSet<NodeName>>,
     nodes: HashMap<NodeName, Node>,
 }
 
@@ -28,6 +32,17 @@ impl Registry {
             events: HashMap::new(),
             nodes: HashMap::new(),
         }
+    }
+
+    pub(crate) fn get_all_nodes_for_event(&self, event_name: &EventName) -> Option<Vec<NodeName>> {
+        let event_nodes = self.events.get(event_name)?;
+
+        Some(event_nodes.iter().cloned().collect())
+    }
+
+    pub(crate) fn get_node_name_for_event(&mut self, event_name: &EventName) -> Option<NodeName> {
+        let event_nodes = self.events.get_mut(event_name)?;
+        event_nodes.get_round_robin()
     }
 
     pub(crate) fn add_new_node_with_events(
@@ -65,7 +80,7 @@ impl Registry {
                 // first instance of event, create event name entry with node_name
                 None => {
                     self.events
-                        .insert(event_name.clone(), hashset![node.name.clone()]);
+                        .insert(event_name.clone(), qset![node.name.clone()]);
                 }
             }
 
@@ -82,9 +97,9 @@ impl Registry {
                 .events
                 .get_mut(&event_name)
                 // go through the node's events and remove node from each event
-                .and_then(|node_names| {
+                .map(|node_names| {
                     node_names.remove(&node_name);
-                    Some(node_names)
+                    node_names
                 });
 
             // if the event doesn't have any associated nodes remove the event entirely
