@@ -14,3 +14,5 @@ Big missing pieces:
 
 - Sending actions [#8](https://github.com/primcloud/moleculer-rs/issues/8)
 - Receiving and responding to actions [#3](https://github.com/primcloud/moleculer-rs/issues/3)
+- Documentation [#16](https://github.com/primcloud/moleculer-rs/issues/16)
+- Tests [#17](https://github.com/primcloud/moleculer-rs/issues/17)
