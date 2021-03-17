@@ -8,7 +8,7 @@ Currently it only does the following:
 - Only NATS transporter
 - Only JSON serialization/deserialization
 - Can `emit` and `broadcast` events
-- Can receive events
+- Can respond to events from other molecular clients using callbacks
 
 Big missing pieces:
 
