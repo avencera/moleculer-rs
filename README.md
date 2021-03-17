@@ -8,7 +8,7 @@ Currently it only does the following:
 - Only NATS transporter
 - Only JSON serialization/deserialization
 - Can `emit` and `broadcast` events
-- Can respond to events from other molecular clients using callbacks
+- Can respond to events from other molecular clients using callbacks (see: [simple event example](https://github.com/primcloud/moleculer-rs/blob/master/examples/simple_event.rs))
 
 Big missing pieces:
 
