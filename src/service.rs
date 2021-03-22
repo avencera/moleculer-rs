@@ -226,13 +226,11 @@ impl Context<Action> {
         }
     }
 
-    pub fn reply(&self, params: Value) -> Result<(), Error> {
+    pub fn reply(&self, params: Value) {
         act_zero::send!(self
             .broker
             .addr
             .reply(self.node_id.clone(), self.id.clone(), params));
-
-        Ok(())
     }
 }
 
