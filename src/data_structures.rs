@@ -64,7 +64,7 @@ mod macros {
                 _set.insert($value)
             )*;
 
-            QueueSet::new(_set, _queue)
+            $crate::data_structures::QueueSet::new(_set, _queue)
         }
     };
     ($value:expr;$count:expr) => {
@@ -77,7 +77,7 @@ mod macros {
                 _set.insert($value)
             }
 
-            QueueSet::new(_set, _queue)
+            $crate::data_structures::QueueSet::new(_set, _queue)
         }
     };
 }
