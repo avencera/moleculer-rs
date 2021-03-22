@@ -2,7 +2,7 @@ use std::{error::Error, time::Duration};
 
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
-    service::{Context, EventBuilder, Service},
+    service::{Context, Event, EventBuilder, Service},
     ServiceBroker,
 };
 
@@ -35,14 +35,14 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn print_async(_ctx: Context) -> Result<(), Box<dyn Error>> {
+fn print_async(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     println!("Starting");
     tokio::spawn(async { hello_from_async().await });
     println!("Ended");
     Ok(())
 }
 
-fn print_normal(_ctx: Context) -> Result<(), Box<dyn Error>> {
+fn print_normal(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     println!("Hello from normal");
     Ok(())
 }

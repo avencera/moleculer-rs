@@ -2,7 +2,7 @@ use std::error::Error;
 
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
-    service::{Context, EventBuilder, Service},
+    service::{Context, Event, EventBuilder, Service},
     ServiceBroker,
 };
 use serde::Deserialize;
@@ -34,12 +34,12 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn print_hi(_ctx: Context) -> Result<(), Box<dyn Error>> {
+fn print_hi(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     println!("Hello from Rust");
     Ok(())
 }
 
-fn print_name(ctx: Context) -> Result<(), Box<dyn Error>> {
+fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     let msg: PrintNameMessage = serde_json::from_value(ctx.params)?;
 
     println!("Hello to: {} from Rust", msg.name);
