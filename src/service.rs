@@ -47,7 +47,6 @@ impl EventBuilder {
         self
     }
 
-    pub fn add_callback(mut self, callback: EventCallback) -> Self {
     pub fn add_callback(mut self, callback: Callback<Event>) -> Self {
         self.callback = Some(callback);
         self
@@ -55,6 +54,40 @@ impl EventBuilder {
 
     pub fn build(self) -> Event {
         Event {
+            name: self.name,
+            params: self.params,
+            callback: self.callback,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct ActionBuilder {
+    name: String,
+    params: Option<Value>,
+    callback: Option<Callback<Action>>,
+}
+
+impl ActionBuilder {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self {
+            name: name.into(),
+            ..Self::default()
+        }
+    }
+
+    pub fn add_params(mut self, params: Value) -> Self {
+        self.params = Some(params);
+        self
+    }
+
+    pub fn add_callback(mut self, callback: Callback<Action>) -> Self {
+        self.callback = Some(callback);
+        self
+    }
+
+    pub fn build(self) -> Action {
+        Action {
             name: self.name,
             params: self.params,
             callback: self.callback,

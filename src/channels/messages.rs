@@ -99,6 +99,42 @@ pub mod incoming {
         #[serde(default)]
         pub broadcast: Option<bool>,
     }
+
+    #[derive(Deserialize, Debug)]
+    pub struct RequestMessage {
+        pub id: String,
+        pub sender: String,
+        pub ver: String,
+
+        pub action: String,
+
+        #[serde(default)]
+        pub params: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+
+        pub timeout: f32,
+        pub level: i32,
+
+        #[serde(default)]
+        pub tracing: Option<bool>,
+
+        #[serde(rename = "parentID", default)]
+        pub parent_id: Option<String>,
+
+        #[serde(rename = "requestID", default)]
+        pub request_id: String,
+
+        #[serde(rename = "caller", default)]
+        pub caller: Option<String>,
+
+        #[serde(default)]
+        pub stream: Option<bool>,
+
+        #[serde(default)]
+        pub seq: Option<i32>,
+    }
 }
 
 pub mod outgoing {
@@ -276,7 +312,7 @@ pub mod outgoing {
     }
 
     impl<'a> EventMessage<'a> {
-        pub fn new_for_emit(config: &'a Config, event: &'a str, params: Value) -> Self {
+        pub(crate) fn new_for_emit(config: &'a Config, event: &'a str, params: Value) -> Self {
             Self {
                 event,
 
@@ -299,11 +335,53 @@ pub mod outgoing {
             }
         }
 
-        pub fn new_for_broadcast(config: &'a Config, event: &'a str, params: Value) -> Self {
+        pub(crate) fn new_for_broadcast(config: &'a Config, event: &'a str, params: Value) -> Self {
             Self {
                 broadcast: Some(true),
                 ..EventMessage::new_for_emit(config, event, params)
             }
         }
     }
+
+    #[derive(Serialize, Debug)]
+    pub struct Response<'a> {
+        pub id: &'a str,
+        pub sender: &'a str,
+        pub ver: &'static str,
+
+        #[serde(default)]
+        pub data: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+
+        #[serde(default)]
+        pub error: Option<crate::channels::messages::MoleculerError>,
+
+        #[serde(default)]
+        pub success: bool,
+    }
+
+    impl<'a> Response<'a> {
+        pub(crate) fn new(config: &'a Config, request_id: &'a str, params: Value) -> Self {
+            Self {
+                ver: "4",
+                id: request_id,
+                data: params,
+                meta: Value::default(),
+                sender: &config.node_id,
+                success: true,
+                error: None,
+            }
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct MoleculerError {
+    message: String,
+    code: i8,
+    #[serde(rename = "type")]
+    type_: String,
+    data: serde_json::Value,
 }
