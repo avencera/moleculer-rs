@@ -202,6 +202,18 @@ impl ServiceBroker {
         Produces::ok(())
     }
 
+    pub(crate) async fn reply(&self, node: String, id: String, reply: Value) -> ActorResult<()> {
+        let message = outgoing::Response::new(&self.config, &id, reply);
+
+        let reply_channel = Channel::Response.external_channel(&self.config, node);
+
+        send!(self
+            .channel_supervisor
+            .publish_to_channel(reply_channel, serde_json::to_vec(&message)?));
+
+        Produces::ok(())
+    }
+
     // private
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
