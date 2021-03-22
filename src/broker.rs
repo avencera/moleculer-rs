@@ -8,14 +8,17 @@ use log::{error, warn};
 use serde_json::Value;
 
 use crate::{
-    channels::{
-        self,
-        messages::{
-            incoming::{DisconnectMessage, EventMessage, HeartbeatMessage, InfoMessage},
-            outgoing::{self},
+    channels::messages::{
+        incoming::{
+            DisconnectMessage, EventMessage, HeartbeatMessage, InfoMessage, RequestMessage,
         },
-        ChannelSupervisor,
+        outgoing::{self},
     },
+    service::Action,
+};
+
+use crate::{
+    channels::{self, ChannelSupervisor},
     config::{self, Channel, DeserializeError, Serializer},
     service::{Context, Event, Service},
 };
@@ -41,7 +44,16 @@ pub enum Error {
     #[error("Call back function failed to complete: {0}")]
     EventCallbackFailed(String),
 
-    #[error("Node not found for ('{0}') event")]
+    #[error("Unable to find action '{0}' in registry")]
+    ActionNotFound(String),
+
+    #[error("Unable to find callback function for action '{0}'")]
+    ActionCallbackNotFound(String),
+
+    #[error("Call back function failed to complete: {0}")]
+    ActionCallbackFailed(String),
+
+    #[error("Node not found for ('{0}') event or action")]
     NodeNotFound(String),
 }
 
@@ -51,7 +63,9 @@ pub struct ServiceBroker {
     pub(crate) instance_id: String,
     pub(crate) serializer: Serializer,
     pub(crate) services: Vec<Service>,
+
     pub(crate) events: Events,
+    pub(crate) actions: Actions,
 
     pub(crate) registry: Registry,
 
@@ -61,6 +75,7 @@ pub struct ServiceBroker {
 }
 
 pub struct Events(HashMap<String, Event>);
+pub struct Actions(HashMap<String, Action>);
 
 impl Events {
     fn new() -> Self {
@@ -78,6 +93,27 @@ impl From<&Vec<Service>> for Events {
             services
                 .iter()
                 .flat_map(|service| service.events.clone())
+                .collect(),
+        )
+    }
+}
+
+impl Actions {
+    fn new() -> Self {
+        Actions(HashMap::new())
+    }
+
+    fn get(&self, key: &str) -> Option<&Action> {
+        self.0.get(key)
+    }
+}
+
+impl From<&Vec<Service>> for Actions {
+    fn from(services: &Vec<Service>) -> Self {
+        Actions(
+            services
+                .iter()
+                .flat_map(|service| service.actions.clone())
                 .collect(),
         )
     }
@@ -121,6 +157,7 @@ impl ServiceBroker {
 
             registry: Registry::new(),
             events: Events::new(),
+            actions: Actions::new(),
 
             pid: Addr::detached(),
             channel_supervisor: Addr::detached(),
@@ -165,6 +202,18 @@ impl ServiceBroker {
         Produces::ok(())
     }
 
+    pub(crate) async fn reply(&self, node: String, id: String, reply: Value) -> ActorResult<()> {
+        let message = outgoing::Response::new(&self.config, &id, reply);
+
+        let reply_channel = Channel::Response.external_channel(&self.config, node);
+
+        send!(self
+            .channel_supervisor
+            .publish_to_channel(reply_channel, serde_json::to_vec(&message)?));
+
+        Produces::ok(())
+    }
+
     // private
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
@@ -200,11 +249,12 @@ impl ServiceBroker {
     pub(crate) async fn add_service(&mut self, service: Service) {
         self.services.push(service);
         self.events = (&self.services).into();
+        self.actions = (&self.services).into();
     }
 
     pub(crate) async fn add_services(&mut self, services: Vec<Service>) {
         for service in services {
-            self.services.push(service);
+            self.add_service(service).await;
         }
     }
 
@@ -233,9 +283,32 @@ impl ServiceBroker {
             .clone()
             .ok_or_else(|| Error::EventCallbackNotFound(event_message.event.clone()))?;
 
-        let event_context = Context::new(event_message, self.pid.clone().into());
+        let event_context = Context::<Event>::new(event_message, self.pid.clone().into());
 
         callback(event_context).map_err(|err| Error::EventCallbackFailed(err.to_string()))?;
+
+        Produces::ok(())
+    }
+
+    pub(crate) async fn handle_incoming_request(
+        &self,
+        request_message: Result<RequestMessage, DeserializeError>,
+    ) -> ActorResult<()> {
+        let request_message = request_message?;
+
+        let request = self
+            .actions
+            .get(&request_message.action)
+            .ok_or_else(|| Error::ActionNotFound(request_message.action.clone()))?;
+
+        let callback = request
+            .callback
+            .clone()
+            .ok_or_else(|| Error::ActionCallbackNotFound(request_message.action.clone()))?;
+
+        let request_context = Context::<Action>::new(request_message, self.pid.clone().into());
+
+        callback(request_context).map_err(|err| Error::ActionCallbackFailed(err.to_string()))?;
 
         Produces::ok(())
     }

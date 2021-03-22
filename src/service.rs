@@ -1,27 +1,28 @@
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, marker::PhantomData};
 
-use crate::{channels::messages::incoming::EventMessage, ServiceBroker};
+use crate::{
+    channels::messages::incoming::{EventMessage, RequestMessage},
+    ServiceBroker,
+};
 
-pub type ActionCallback = fn(Context) -> Option<Bytes>;
-pub type EventCallback = fn(Context) -> Result<(), Box<dyn Error>>;
+pub type Callback<T> = fn(Context<T>) -> Result<(), Box<dyn std::error::Error>>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Action {
     name: String,
     #[serde(default)]
     params: Option<Value>,
     #[serde(skip)]
-    callback: Option<ActionCallback>,
+    pub(crate) callback: Option<Callback<Action>>,
 }
 
 #[derive(Default, Debug)]
 pub struct EventBuilder {
     name: String,
     params: Option<Value>,
-    callback: Option<EventCallback>,
+    callback: Option<Callback<Event>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -30,7 +31,7 @@ pub struct Event {
     #[serde(default)]
     params: Option<Value>,
     #[serde(skip)]
-    pub callback: Option<EventCallback>,
+    pub(crate) callback: Option<Callback<Event>>,
 }
 
 impl EventBuilder {
@@ -46,13 +47,47 @@ impl EventBuilder {
         self
     }
 
-    pub fn add_callback(mut self, callback: EventCallback) -> Self {
+    pub fn add_callback(mut self, callback: Callback<Event>) -> Self {
         self.callback = Some(callback);
         self
     }
 
     pub fn build(self) -> Event {
         Event {
+            name: self.name,
+            params: self.params,
+            callback: self.callback,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct ActionBuilder {
+    name: String,
+    params: Option<Value>,
+    callback: Option<Callback<Action>>,
+}
+
+impl ActionBuilder {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self {
+            name: name.into(),
+            ..Self::default()
+        }
+    }
+
+    pub fn add_params(mut self, params: Value) -> Self {
+        self.params = Some(params);
+        self
+    }
+
+    pub fn add_callback(mut self, callback: Callback<Action>) -> Self {
+        self.callback = Some(callback);
+        self
+    }
+
+    pub fn build(self) -> Action {
+        Action {
             name: self.name,
             params: self.params,
             callback: self.callback,
@@ -72,7 +107,7 @@ pub struct Service {
     #[serde(default)]
     metadata: Option<Value>,
 
-    actions: HashMap<String, Action>,
+    pub(crate) actions: HashMap<String, Action>,
     pub(crate) events: HashMap<String, Event>,
 }
 
@@ -107,7 +142,9 @@ pub enum EventType {
     Broadcast,
 }
 
-pub struct Context {
+pub struct Context<T> {
+    phantom: PhantomData<T>,
+
     pub id: String,
     pub broker: ServiceBroker,
     pub node_id: String,
@@ -128,7 +165,7 @@ pub struct Context {
     pub level: i32,
 }
 
-impl Context {
+impl Context<Event> {
     pub fn new(event_message: EventMessage, service_broker: ServiceBroker) -> Self {
         let event_type = if event_message.broadcast.unwrap_or(false) {
             EventType::Broadcast
@@ -137,6 +174,8 @@ impl Context {
         };
 
         Self {
+            phantom: PhantomData,
+
             broker: service_broker,
             id: event_message.id,
             params: event_message.data,
@@ -158,7 +197,46 @@ impl Context {
             locals: None,
         }
     }
+}
 
+impl Context<Action> {
+    pub fn new(request_message: RequestMessage, service_broker: ServiceBroker) -> Self {
+        Self {
+            phantom: PhantomData,
+
+            broker: service_broker,
+            id: request_message.request_id.clone(),
+            params: request_message.params,
+
+            action: Some(request_message.action),
+
+            event_type: None,
+            event_name: None,
+            event_groups: vec![],
+
+            node_id: request_message.sender,
+            caller: request_message.caller,
+            parent_id: request_message.parent_id,
+            request_id: Some(request_message.request_id),
+
+            meta: request_message.meta,
+            level: 1,
+
+            locals: None,
+        }
+    }
+
+    pub fn reply(&self, params: Value) -> Result<(), Error> {
+        act_zero::send!(self
+            .broker
+            .addr
+            .reply(self.node_id.clone(), self.id.clone(), params));
+
+        Ok(())
+    }
+}
+
+impl<T> Context<T> {
     pub fn emit<S: Into<String>>(&self, event: S, params: Value) {
         self.broker.emit(event, params)
     }

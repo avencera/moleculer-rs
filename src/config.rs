@@ -313,6 +313,7 @@ impl Channel {
     pub fn external_channel(&self, config: &Config, node_name: String) -> String {
         match self {
             Channel::Event => format!("{}.EVENT.{}", mol(&config), node_name),
+            Channel::Response => format!("{}.RES.{}", mol(&config), node_name),
             _ => unimplemented!(),
         }
     }

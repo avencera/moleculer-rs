@@ -8,6 +8,7 @@ mod heartbeat;
 mod info;
 mod ping;
 mod pong;
+mod request;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -34,6 +35,7 @@ use self::{
     messages::outgoing::DisconnectMessage,
     ping::{Ping, PingTargeted},
     pong::Pong,
+    request::Request,
 };
 
 #[derive(Error, Debug)]
@@ -174,7 +176,9 @@ impl ChannelSupervisor {
         self.info_targeted =
             spawn_actor(InfoTargeted::new(broker_pid.clone(), &self.config, &self.conn).await);
 
-        self.event = spawn_actor(Event::new(broker_pid, &self.config, &self.conn).await);
+        self.event = spawn_actor(Event::new(broker_pid.clone(), &self.config, &self.conn).await);
+
+        self.request = spawn_actor(Request::new(broker_pid, &self.config, &self.conn).await);
 
         Produces::ok(())
     }
@@ -218,17 +222,6 @@ impl ChannelSupervisor {
 
         debug!("Disconnect message sent");
         Produces::ok(())
-    }
-}
-
-impl Actor for Request {}
-struct Request {
-    parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl Request {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
     }
 }
 

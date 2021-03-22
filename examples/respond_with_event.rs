@@ -2,7 +2,7 @@ use std::error::Error;
 
 use moleculer_rs::{
     config::{ConfigBuilder, Transporter},
-    service::{Context, EventBuilder, Service},
+    service::{Context, Event, EventBuilder, Service},
     ServiceBroker,
 };
 use serde::{Deserialize, Serialize};
@@ -34,14 +34,14 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn emit_hi(ctx: Context) -> Result<(), Box<dyn Error>> {
+fn emit_hi(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     println!("Received emitHi in rust");
     ctx.broker.emit("test", serde_json::json!({}));
 
     Ok(())
 }
 
-fn broadcast_name(ctx: Context) -> Result<(), Box<dyn Error>> {
+fn broadcast_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     let msg: PrintNameMessage = serde_json::from_value(ctx.params)?;
     println!("Received broadcastName in rust");
     ctx.broker

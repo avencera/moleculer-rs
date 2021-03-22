@@ -59,10 +59,11 @@ mod macros {
             let _cap = qset!(@count $($value),*);
             let mut _set = ::std::collections::HashSet::with_capacity(_cap);
             let mut _queue = ::std::collections::VecDeque::with_capacity(_cap);
+
             $(
                 _queue.push_back($value.clone());
-                _set.insert($value)
-            )*;
+                _set.insert($value);
+            )*
 
             $crate::data_structures::QueueSet::new(_set, _queue)
         }
@@ -71,7 +72,7 @@ mod macros {
         {
             let c = $count;
             let mut _queue = ::std::collections::VecDeque::with_capacity(c);
-            let mut _set = ::std::collections::HashSet::with_capacity(_cap);
+            let mut _set = ::std::collections::HashSet::with_capacity(c);
             for _ in 0..c {
                 _queue.push_back($value.clone());
                 _set.insert($value)
