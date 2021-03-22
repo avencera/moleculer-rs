@@ -5,11 +5,11 @@ use crate::{
 
 use super::{
     messages::{incoming::PingMessage, outgoing::PongMessage},
-    ChannelSupervisor, Error,
+    ChannelSupervisor,
 };
 
 use act_zero::*;
-use async_nats::{Message, Subscription};
+use async_nats::Message;
 use async_trait::async_trait;
 use log::{debug, error, info};
 use std::sync::Arc;

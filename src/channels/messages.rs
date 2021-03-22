@@ -141,11 +141,7 @@ pub mod outgoing {
     use std::{collections::HashMap, time::SystemTime};
 
     use super::incoming::PingMessage;
-    use crate::{
-        built_info,
-        config::Config,
-        service::{Context, Service},
-    };
+    use crate::{built_info, config::Config, service::Service};
     use serde::Serialize;
     use serde_json::{json, Value};
     use uuid::Uuid;

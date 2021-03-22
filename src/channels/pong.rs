@@ -8,7 +8,6 @@ use act_zero::*;
 use async_nats::{Message, Subscription};
 use async_trait::async_trait;
 use log::{debug, error, info};
-use serde::Deserialize;
 use std::sync::Arc;
 
 #[async_trait]
@@ -26,20 +25,21 @@ impl Actor for Pong {
         false
     }
 }
+#[allow(dead_code)]
 pub struct Pong {
     config: Arc<Config>,
     channel: Subscription,
     parent: WeakAddr<ChannelSupervisor>,
 }
 
-#[derive(Deserialize)]
-struct PongMessage {
-    ver: String,
-    sender: String,
-    id: String,
-    time: i64,
-    arrived: i64,
-}
+// #[derive(Deserialize)]
+// struct PongMessage {
+//     ver: String,
+//     sender: String,
+//     id: String,
+//     time: i64,
+//     arrived: i64,
+// }
 
 impl Pong {
     pub async fn new(
@@ -57,7 +57,7 @@ impl Pong {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub async fn listen(&mut self, _pid: Addr<Self>) {
         info!("Listening for PONG messages");
 
         while let Some(msg) = self.channel.next().await {
@@ -68,7 +68,7 @@ impl Pong {
         }
     }
 
-    async fn handle_message(&self, msg: Message) -> Result<(), Error> {
+    async fn handle_message(&self, _msg: Message) -> Result<(), Error> {
         // let pong_msg: PongMessage = self.config.serializer.deserialize(&msg.data)?;
         // do nothing with incoming disconnect messages for now
         Ok(())

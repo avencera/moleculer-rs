@@ -17,7 +17,7 @@ where
     }
 
     pub(crate) fn insert(&mut self, item: T) {
-        if let None = self.set.get(&item) {
+        if self.set.get(&item).is_none() {
             self.set.insert(item.clone());
             self.queue.push_back(item);
         }

@@ -57,6 +57,7 @@ pub enum Error {
     NodeNotFound(String),
 }
 
+#[allow(dead_code)]
 pub struct ServiceBroker {
     pub(crate) namespace: String,
     pub(crate) node_id: String,

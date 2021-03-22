@@ -79,6 +79,8 @@ pub struct ChannelSupervisor {
     event: Addr<Event>,
 
     request: Addr<Request>,
+
+    #[allow(dead_code)]
     response: Addr<Response>,
 
     discover: Addr<Discover>,
@@ -225,15 +227,9 @@ impl ChannelSupervisor {
     }
 }
 
-impl Actor for Response {}
+#[allow(dead_code)]
 struct Response {
     parent: WeakAddr<ChannelSupervisor>,
-}
-
-impl Response {
-    fn new(parent: WeakAddr<ChannelSupervisor>) -> Self {
-        Self { parent }
-    }
 }
 
 pub async fn start_supervisor(

@@ -14,8 +14,8 @@ use config::Config;
 use serde_json::Value;
 use service::Service;
 
+#[allow(dead_code)]
 pub(crate) mod built_info {
-    #[allow(dead_code)]
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
