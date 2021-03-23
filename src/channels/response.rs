@@ -5,7 +5,7 @@ use crate::{
     nats::Conn,
 };
 
-use act_zero::runtimes::{panic::spawn_actor, tokio::Timer};
+use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::*;
 use async_nats::Message;
