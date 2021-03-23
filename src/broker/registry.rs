@@ -10,9 +10,6 @@ use crate::{
     data_structures::QueueSet,
 };
 
-pub type EventName = String;
-pub type NodeName = String;
-
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
@@ -21,7 +18,12 @@ use async_trait::async_trait;
 
 use super::ServiceBroker;
 
+pub type ActionName = String;
+pub type EventName = String;
+pub type NodeName = String;
+
 pub(crate) struct Registry {
+    actions: HashMap<EventName, QueueSet<NodeName>>,
     events: HashMap<EventName, QueueSet<NodeName>>,
     nodes: HashMap<NodeName, Node>,
 }
@@ -29,6 +31,7 @@ pub(crate) struct Registry {
 impl Registry {
     pub(crate) fn new() -> Self {
         Self {
+            actions: HashMap::new(),
             events: HashMap::new(),
             nodes: HashMap::new(),
         }
@@ -45,7 +48,12 @@ impl Registry {
         event_nodes.get_round_robin()
     }
 
-    pub(crate) fn add_new_node_with_events(
+    pub(crate) fn get_node_name_for_action(&mut self, action_name: &str) -> Option<NodeName> {
+        let action_nodes = self.actions.get_mut(action_name)?;
+        action_nodes.get_round_robin()
+    }
+
+    pub(crate) fn add_or_update_node(
         &mut self,
         broker: Addr<ServiceBroker>,
         heartbeat_timeout: u32,
@@ -64,12 +72,11 @@ impl Registry {
             }
         };
 
-        // get event_names from info message
+        // get event_names  from info message
         let event_names = info
             .services
             .iter()
             .flat_map(|service| service.events.keys());
-
         for event_name in event_names {
             match self.events.get_mut(event_name) {
                 // event present from another node, add node_name to event's node_names set
@@ -87,9 +94,33 @@ impl Registry {
             // insert event into node's events set
             node.events.insert(event_name.clone());
         }
+
+        // get action_names from info message
+        let action_names = info
+            .services
+            .iter()
+            .flat_map(|service| service.actions.keys());
+
+        for action_name in action_names {
+            match self.actions.get_mut(action_name) {
+                // action present from another node, add node_name to action's node_names set
+                Some(node_names) => {
+                    node_names.insert(node.name.clone());
+                }
+
+                // first instance of action, create action name entry with node_name
+                None => {
+                    self.actions
+                        .insert(action_name.clone(), qset![node.name.clone()]);
+                }
+            }
+
+            // insert action into node's actions set
+            node.actions.insert(action_name.clone());
+        }
     }
 
-    pub(crate) fn remove_node_with_events(&mut self, node_name: NodeName) -> Option<()> {
+    pub(crate) fn remove_node(&mut self, node_name: NodeName) -> Option<()> {
         let node = self.nodes.remove(&node_name)?;
 
         for event_name in node.events {
@@ -105,6 +136,22 @@ impl Registry {
             // if the event doesn't have any associated nodes remove the event entirely
             if let Some(0) = node_names_left_for_event.map(|node_names| node_names.len()) {
                 self.events.remove(&event_name);
+            }
+        }
+
+        for action_name in node.actions {
+            let node_names_left_for_action = self
+                .actions
+                .get_mut(&action_name)
+                // go through the node's actions and remove node from each action
+                .map(|node_names| {
+                    node_names.remove(&node_name);
+                    node_names
+                });
+
+            // if the action doesn't have any associated nodes remove the action entirely
+            if let Some(0) = node_names_left_for_action.map(|node_names| node_names.len()) {
+                self.actions.remove(&action_name);
             }
         }
 
@@ -132,6 +179,7 @@ pub struct Node {
     pub(crate) client: Client,
     pub(crate) instance_id: String,
     pub(crate) events: HashSet<EventName>,
+    pub(crate) actions: HashSet<ActionName>,
 }
 
 impl Node {
@@ -148,6 +196,7 @@ impl Node {
             client: info.client.clone(),
             instance_id: info.instance_id.clone(),
             events: hashset![],
+            actions: hashset![],
         }
     }
 }

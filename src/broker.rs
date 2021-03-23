@@ -6,6 +6,7 @@ use act_zero::*;
 use async_trait::async_trait;
 use log::{error, warn};
 use serde_json::Value;
+use tokio::sync::oneshot::Sender;
 
 use crate::{
     channels::messages::{
@@ -203,8 +204,35 @@ impl ServiceBroker {
         Produces::ok(())
     }
 
+    pub(crate) async fn call(
+        &mut self,
+        action: String,
+        params: Value,
+        tx: Sender<Value>,
+    ) -> ActorResult<()> {
+        let node_name = self
+            .registry
+            .get_node_name_for_action(&action)
+            .ok_or_else(|| Error::NodeNotFound(action.clone()))?;
+
+        let node_request_channel = Channel::Request.external_channel(&self.config, &node_name);
+        let message = outgoing::RequestMessage::new(&self.config, &action, params);
+        let serialized_message = serde_json::to_vec(&message)?;
+
+        call!(self
+            .channel_supervisor
+            .start_response_waiter(node_name, message.request_id, tx))
+        .await?;
+
+        send!(self
+            .channel_supervisor
+            .publish_to_channel(node_request_channel, serialized_message));
+
+        Produces::ok(())
+    }
+
     pub(crate) async fn reply(&self, node: String, id: String, reply: Value) -> ActorResult<()> {
-        let message = outgoing::Response::new(&self.config, &id, reply);
+        let message = outgoing::ResponseMessage::new(&self.config, &id, reply);
 
         let reply_channel = Channel::Response.external_channel(&self.config, node);
 
@@ -219,17 +247,14 @@ impl ServiceBroker {
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
         if self.node_id != info.sender {
-            self.registry.add_new_node_with_events(
-                self.pid.clone(),
-                self.config.heartbeat_timeout,
-                info,
-            );
+            self.registry
+                .add_or_update_node(self.pid.clone(), self.config.heartbeat_timeout, info);
         }
     }
 
     pub(crate) async fn handle_disconnect_message(&mut self, disconnect: DisconnectMessage) {
         if self.node_id != disconnect.sender {
-            self.registry.remove_node_with_events(disconnect.sender);
+            self.registry.remove_node(disconnect.sender);
         }
     }
 
@@ -238,7 +263,7 @@ impl ServiceBroker {
             "Node {} expectedly disconnected (missed heartbeat)",
             &node_name
         );
-        self.registry.remove_node_with_events(node_name);
+        self.registry.remove_node(node_name);
     }
 
     pub(crate) async fn handle_heartbeat_message(&mut self, heartbeat: HeartbeatMessage) {

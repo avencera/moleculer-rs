@@ -13,6 +13,17 @@ use act_zero::*;
 use config::Config;
 use serde_json::Value;
 use service::Service;
+use thiserror::Error;
+use tokio::sync::oneshot::{self, error};
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Timeout reached waiting for response")]
+    ReceiveError(#[from] error::RecvError),
+
+    #[error("Unknown error")]
+    UnknownError,
+}
 
 #[allow(dead_code)]
 pub(crate) mod built_info {
@@ -43,6 +54,15 @@ impl ServiceBroker {
 
     pub async fn start(self) {
         self.addr.termination().await
+    }
+
+    pub async fn call<S: Into<String>>(self, action: S, params: Value) -> Result<Value, Error> {
+        let (tx, rx) = oneshot::channel();
+
+        send!(self.addr.call(action.into(), params, tx));
+        let response_value = rx.await?;
+
+        Ok(response_value)
     }
 
     pub fn emit<S: Into<String>>(&self, event: S, params: Value) {

@@ -135,6 +135,24 @@ pub mod incoming {
         #[serde(default)]
         pub seq: Option<i32>,
     }
+    #[derive(Deserialize, Debug)]
+    pub struct ResponseMessage {
+        pub id: String,
+        pub sender: String,
+        pub ver: String,
+
+        #[serde(default)]
+        pub data: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+
+        #[serde(default)]
+        pub error: Option<crate::channels::messages::MoleculerError>,
+
+        #[serde(default)]
+        pub success: bool,
+    }
 }
 
 pub mod outgoing {
@@ -340,7 +358,7 @@ pub mod outgoing {
     }
 
     #[derive(Serialize, Debug)]
-    pub struct Response<'a> {
+    pub struct ResponseMessage<'a> {
         pub id: &'a str,
         pub sender: &'a str,
         pub ver: &'static str,
@@ -358,7 +376,7 @@ pub mod outgoing {
         pub success: bool,
     }
 
-    impl<'a> Response<'a> {
+    impl<'a> ResponseMessage<'a> {
         pub(crate) fn new(config: &'a Config, request_id: &'a str, params: Value) -> Self {
             Self {
                 ver: "4",
@@ -368,6 +386,71 @@ pub mod outgoing {
                 sender: &config.node_id,
                 success: true,
                 error: None,
+            }
+        }
+    }
+
+    #[derive(Serialize, Debug)]
+    pub struct RequestMessage<'a> {
+        pub id: String,
+        pub sender: &'a str,
+        pub ver: &'static str,
+
+        pub action: &'a str,
+
+        #[serde(default)]
+        pub params: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+
+        pub timeout: f32,
+        pub level: i32,
+
+        #[serde(default)]
+        pub tracing: Option<bool>,
+
+        #[serde(rename = "parentID", default)]
+        pub parent_id: Option<&'a str>,
+
+        #[serde(rename = "requestID", default)]
+        pub request_id: String,
+
+        #[serde(rename = "caller", default)]
+        pub caller: Option<&'a str>,
+
+        #[serde(default)]
+        pub stream: Option<bool>,
+
+        #[serde(default)]
+        pub seq: Option<i32>,
+    }
+
+    impl<'a> RequestMessage<'a> {
+        pub(crate) fn new(config: &'a Config, action_name: &'a str, params: Value) -> Self {
+            let id = Uuid::new_v4();
+
+            Self {
+                ver: "4",
+                sender: &config.node_id,
+                id: id.to_string(),
+
+                params,
+                action: action_name,
+
+                meta: serde_json::Value::default(),
+
+                timeout: config.request_timeout as f32,
+                level: 1,
+
+                tracing: None,
+                parent_id: None,
+
+                request_id: id.to_string(),
+                caller: None,
+
+                stream: None,
+                seq: None,
             }
         }
     }

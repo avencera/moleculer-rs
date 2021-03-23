@@ -9,6 +9,7 @@ mod info;
 mod ping;
 mod pong;
 mod request;
+mod response;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,7 +18,9 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_trait::async_trait;
 use log::{debug, error};
+use serde_json::Value;
 use thiserror::Error;
+use tokio::sync::oneshot::Sender;
 
 use crate::{
     broker::ServiceBroker,
@@ -36,6 +39,7 @@ use self::{
     ping::{Ping, PingTargeted},
     pong::Pong,
     request::Request,
+    response::Response,
 };
 
 #[derive(Error, Debug)]
@@ -80,7 +84,6 @@ pub struct ChannelSupervisor {
 
     request: Addr<Request>,
 
-    #[allow(dead_code)]
     response: Addr<Response>,
 
     discover: Addr<Discover>,
@@ -182,6 +185,8 @@ impl ChannelSupervisor {
 
         self.request = spawn_actor(Request::new(broker_pid, &self.config, &self.conn).await);
 
+        self.response = spawn_actor(Response::new(&self.config, &self.conn).await);
+
         Produces::ok(())
     }
 
@@ -198,6 +203,23 @@ impl ChannelSupervisor {
         if let Err(err) = res {
             error!("Unable to send message: {}", err)
         }
+
+        Produces::ok(())
+    }
+
+    pub async fn start_response_waiter(
+        &self,
+        node_name: String,
+        request_id: String,
+        tx: Sender<Value>,
+    ) -> ActorResult<()> {
+        call!(self.response.start_response_waiter(
+            self.config.request_timeout,
+            node_name,
+            request_id,
+            tx
+        ))
+        .await?;
 
         Produces::ok(())
     }
@@ -225,11 +247,6 @@ impl ChannelSupervisor {
         debug!("Disconnect message sent");
         Produces::ok(())
     }
-}
-
-#[allow(dead_code)]
-struct Response {
-    parent: WeakAddr<ChannelSupervisor>,
 }
 
 pub async fn start_supervisor(
