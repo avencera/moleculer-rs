@@ -204,7 +204,7 @@ impl ServiceBroker {
     }
 
     pub(crate) async fn reply(&self, node: String, id: String, reply: Value) -> ActorResult<()> {
-        let message = outgoing::Response::new(&self.config, &id, reply);
+        let message = outgoing::ResponseMessage::new(&self.config, &id, reply);
 
         let reply_channel = Channel::Response.external_channel(&self.config, node);
 

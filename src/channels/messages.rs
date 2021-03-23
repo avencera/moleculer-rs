@@ -135,6 +135,24 @@ pub mod incoming {
         #[serde(default)]
         pub seq: Option<i32>,
     }
+    #[derive(Deserialize, Debug)]
+    pub struct ResponseMessage {
+        pub id: String,
+        pub sender: String,
+        pub ver: String,
+
+        #[serde(default)]
+        pub data: Value,
+
+        #[serde(default)]
+        pub meta: Value,
+
+        #[serde(default)]
+        pub error: Option<crate::channels::messages::MoleculerError>,
+
+        #[serde(default)]
+        pub success: bool,
+    }
 }
 
 pub mod outgoing {
@@ -340,7 +358,7 @@ pub mod outgoing {
     }
 
     #[derive(Serialize, Debug)]
-    pub struct Response<'a> {
+    pub struct ResponseMessage<'a> {
         pub id: &'a str,
         pub sender: &'a str,
         pub ver: &'static str,
@@ -358,7 +376,7 @@ pub mod outgoing {
         pub success: bool,
     }
 
-    impl<'a> Response<'a> {
+    impl<'a> ResponseMessage<'a> {
         pub(crate) fn new(config: &'a Config, request_id: &'a str, params: Value) -> Self {
             Self {
                 ver: "4",
