@@ -9,6 +9,7 @@ mod info;
 mod ping;
 mod pong;
 mod request;
+mod response;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,6 +37,7 @@ use self::{
     ping::{Ping, PingTargeted},
     pong::Pong,
     request::Request,
+    response::Response,
 };
 
 #[derive(Error, Debug)]
@@ -80,7 +82,6 @@ pub struct ChannelSupervisor {
 
     request: Addr<Request>,
 
-    #[allow(dead_code)]
     response: Addr<Response>,
 
     discover: Addr<Discover>,
@@ -180,7 +181,10 @@ impl ChannelSupervisor {
 
         self.event = spawn_actor(Event::new(broker_pid.clone(), &self.config, &self.conn).await);
 
-        self.request = spawn_actor(Request::new(broker_pid, &self.config, &self.conn).await);
+        self.request =
+            spawn_actor(Request::new(broker_pid.clone(), &self.config, &self.conn).await);
+
+        self.response = spawn_actor(Response::new(broker_pid, &self.config, &self.conn).await);
 
         Produces::ok(())
     }
@@ -225,11 +229,6 @@ impl ChannelSupervisor {
         debug!("Disconnect message sent");
         Produces::ok(())
     }
-}
-
-#[allow(dead_code)]
-struct Response {
-    parent: WeakAddr<ChannelSupervisor>,
 }
 
 pub async fn start_supervisor(
