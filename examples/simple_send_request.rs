@@ -18,7 +18,7 @@ async fn main() -> eyre::Result<()> {
     }
     .build();
 
-    let ask_node_for_answer = EventBuilder::new("printHi")
+    let ask_node_for_answer = EventBuilder::new("askNodeForAnswer")
         .add_callback(ask_node_for_answer)
         .build();
 
