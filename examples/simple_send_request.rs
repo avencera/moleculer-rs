@@ -5,7 +5,6 @@ use moleculer_rs::{
     service::{Context, Event, EventBuilder, Service},
     ServiceBroker,
 };
-use serde::Deserialize;
 use serde_json::json;
 
 #[tokio::main]

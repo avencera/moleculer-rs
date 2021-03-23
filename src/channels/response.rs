@@ -1,7 +1,6 @@
 use crate::{
-    broker::ServiceBroker,
     channels::messages::incoming::ResponseMessage,
-    config::{self, Channel, Config},
+    config::{Channel, Config},
     nats::Conn,
 };
 
@@ -10,7 +9,6 @@ use act_zero::timer::Tick;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
-use config::DeserializeError;
 use log::{debug, error, info};
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -35,15 +33,13 @@ impl Actor for Response {
 }
 pub struct Response {
     config: Arc<Config>,
-    broker: WeakAddr<ServiceBroker>,
     waiters: HashMap<RequestId, Addr<ResponseWaiter>>,
     conn: Conn,
 }
 
 impl Response {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub async fn new(config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
-            broker,
             conn: conn.clone(),
             config: Arc::clone(config),
             waiters: HashMap::new(),
@@ -108,7 +104,7 @@ impl Response {
 #[async_trait]
 impl Actor for ResponseWaiter {
     async fn started(&mut self, pid: Addr<Self>) -> ActorResult<()> {
-        self.pid = pid.clone().downgrade();
+        self.pid = pid.downgrade();
 
         // Start the timer
         self.timer

@@ -183,10 +183,9 @@ impl ChannelSupervisor {
 
         self.event = spawn_actor(Event::new(broker_pid.clone(), &self.config, &self.conn).await);
 
-        self.request =
-            spawn_actor(Request::new(broker_pid.clone(), &self.config, &self.conn).await);
+        self.request = spawn_actor(Request::new(broker_pid, &self.config, &self.conn).await);
 
-        self.response = spawn_actor(Response::new(broker_pid, &self.config, &self.conn).await);
+        self.response = spawn_actor(Response::new(&self.config, &self.conn).await);
 
         Produces::ok(())
     }
