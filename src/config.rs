@@ -79,7 +79,8 @@ impl Default for ConfigBuilder {
             logger: Logger::Console,
             log_level: log::Level::Info,
             transporter: Transporter::Nats("nats://localhost:4222".to_string()),
-            request_timeout: 0,
+            // 5 minute timeout
+            request_timeout: 1000 * 60 * 5,
             retry_policy: RetryPolicy::default(),
             context_params_cloning: false,
             dependency_internal: 1000,

@@ -217,6 +217,16 @@ impl ServiceBroker {
 
         let node_request_channel = Channel::Request.external_channel(&self.config, &node_name);
         let message = outgoing::RequestMessage::new(&self.config, &action, params);
+        let serialized_message = serde_json::to_vec(&message)?;
+
+        call!(self
+            .channel_supervisor
+            .start_response_waiter(node_name, message.request_id, tx))
+        .await?;
+
+        send!(self
+            .channel_supervisor
+            .publish_to_channel(node_request_channel, serialized_message));
 
         Produces::ok(())
     }

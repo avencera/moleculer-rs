@@ -18,7 +18,7 @@ use tokio::sync::oneshot::{self, error};
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Unable to receive response")]
+    #[error("Timeout reached waiting for response")]
     ReceiveError(#[from] error::RecvError),
 
     #[error("Unknown error")]

@@ -18,7 +18,9 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use async_trait::async_trait;
 use log::{debug, error};
+use serde_json::Value;
 use thiserror::Error;
+use tokio::sync::oneshot::Sender;
 
 use crate::{
     broker::ServiceBroker,
@@ -202,6 +204,23 @@ impl ChannelSupervisor {
         if let Err(err) = res {
             error!("Unable to send message: {}", err)
         }
+
+        Produces::ok(())
+    }
+
+    pub async fn start_response_waiter(
+        &self,
+        node_name: String,
+        request_id: String,
+        tx: Sender<Value>,
+    ) -> ActorResult<()> {
+        call!(self.response.start_response_waiter(
+            self.config.request_timeout,
+            node_name,
+            request_id,
+            tx
+        ))
+        .await?;
 
         Produces::ok(())
     }
