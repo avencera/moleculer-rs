@@ -219,11 +219,8 @@ impl ServiceBroker {
 
     pub(crate) async fn handle_info_message(&mut self, info: InfoMessage) {
         if self.node_id != info.sender {
-            self.registry.add_new_node_with_events(
-                self.pid.clone(),
-                self.config.heartbeat_timeout,
-                info,
-            );
+            self.registry
+                .reconcile_node(self.pid.clone(), self.config.heartbeat_timeout, info);
         }
     }
 
