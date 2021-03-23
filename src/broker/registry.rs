@@ -48,7 +48,7 @@ impl Registry {
         event_nodes.get_round_robin()
     }
 
-    pub(crate) fn reconcile_node(
+    pub(crate) fn add_or_update_node(
         &mut self,
         broker: Addr<ServiceBroker>,
         heartbeat_timeout: u32,
@@ -115,7 +115,7 @@ impl Registry {
         }
     }
 
-    pub(crate) fn remove_node_with_events(&mut self, node_name: NodeName) -> Option<()> {
+    pub(crate) fn remove_node(&mut self, node_name: NodeName) -> Option<()> {
         let node = self.nodes.remove(&node_name)?;
 
         for event_name in node.events {
@@ -131,6 +131,22 @@ impl Registry {
             // if the event doesn't have any associated nodes remove the event entirely
             if let Some(0) = node_names_left_for_event.map(|node_names| node_names.len()) {
                 self.events.remove(&event_name);
+            }
+        }
+
+        for action_name in node.actions {
+            let node_names_left_for_action = self
+                .actions
+                .get_mut(&action_name)
+                // go through the node's actions and remove node from each action
+                .map(|node_names| {
+                    node_names.remove(&node_name);
+                    node_names
+                });
+
+            // if the action doesn't have any associated nodes remove the action entirely
+            if let Some(0) = node_names_left_for_action.map(|node_names| node_names.len()) {
+                self.actions.remove(&action_name);
             }
         }
 
