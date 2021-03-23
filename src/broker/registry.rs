@@ -48,6 +48,11 @@ impl Registry {
         event_nodes.get_round_robin()
     }
 
+    pub(crate) fn get_node_name_for_action(&mut self, action_name: &str) -> Option<NodeName> {
+        let action_nodes = self.actions.get_mut(action_name)?;
+        action_nodes.get_round_robin()
+    }
+
     pub(crate) fn add_or_update_node(
         &mut self,
         broker: Addr<ServiceBroker>,

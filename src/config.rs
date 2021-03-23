@@ -1,7 +1,7 @@
 use crate::util;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::borrow::Cow;
 use std::collections::HashMap;
+use std::{borrow::Cow, fmt::Display};
 use strum::{EnumIter, IntoEnumIterator};
 use thiserror::Error;
 use uuid::Uuid;
@@ -310,11 +310,15 @@ impl Channel {
         }
     }
 
-    pub fn external_channel(&self, config: &Config, node_name: String) -> String {
+    pub fn external_channel<S>(&self, config: &Config, node_name: S) -> String
+    where
+        S: AsRef<str> + Display,
+    {
         match self {
             Channel::Event => format!("{}.EVENT.{}", mol(&config), node_name),
             Channel::Response => format!("{}.RES.{}", mol(&config), node_name),
-            _ => unimplemented!(),
+            Channel::Request => format!("{}.REQ.{}", mol(&config), node_name),
+            _ => unreachable!(),
         }
     }
 }

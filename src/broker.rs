@@ -6,6 +6,7 @@ use act_zero::*;
 use async_trait::async_trait;
 use log::{error, warn};
 use serde_json::Value;
+use tokio::sync::oneshot::Sender;
 
 use crate::{
     channels::messages::{
@@ -199,6 +200,23 @@ impl ServiceBroker {
                 .channel_supervisor
                 .publish_to_channel(node_event_channel, serde_json::to_vec(&message)?));
         }
+
+        Produces::ok(())
+    }
+
+    pub(crate) async fn call(
+        &mut self,
+        action: String,
+        params: Value,
+        tx: Sender<Value>,
+    ) -> ActorResult<()> {
+        let node_name = self
+            .registry
+            .get_node_name_for_action(&action)
+            .ok_or_else(|| Error::NodeNotFound(action.clone()))?;
+
+        let node_request_channel = Channel::Request.external_channel(&self.config, &node_name);
+        let message = outgoing::RequestMessage::new(&self.config, &action, params);
 
         Produces::ok(())
     }
