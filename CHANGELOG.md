@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] – 2021-03-24
 
 - Improved cargo docs
 - Created `CHANGELOG.md`
