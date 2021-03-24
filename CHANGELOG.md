@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.2.1] – 2021-03-24
+## [Unreleased]
 
+- Replace custom `ConfigBuilder` with derived one
 - Remove `bytes` library from deps
 
 ## [0.2.0] – 2021-03-24
