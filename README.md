@@ -31,10 +31,7 @@ async fn main() -> eyre::Result<()> {
     color_eyre::install()?;
 
     // build config
-    let config = ConfigBuilder {
-        transporter: Transporter::nats("nats://localhost:4222"),
-        ..ConfigBuilder::default()
-    }
+    let config = ConfigBuilder::default().transporter("nats://localhost:4222")
     .build();
 
     // create the first event

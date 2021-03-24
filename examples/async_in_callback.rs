@@ -11,11 +11,9 @@ async fn main() -> eyre::Result<()> {
     env_logger::init();
     color_eyre::install()?;
 
-    let config = ConfigBuilder {
-        transporter: Transporter::nats("nats://localhost:4222"),
-        ..ConfigBuilder::default()
-    }
-    .build();
+    let config = ConfigBuilder::default()
+        .transporter(Transporter::nats("nats://localhost:4222"))
+        .build();
 
     let print_async = EventBuilder::new("printAsync")
         .add_callback(print_async)

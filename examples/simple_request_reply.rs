@@ -12,11 +12,9 @@ async fn main() -> eyre::Result<()> {
     env_logger::init();
     color_eyre::install()?;
 
-    let config = ConfigBuilder {
-        transporter: Transporter::nats("nats://localhost:4222"),
-        ..ConfigBuilder::default()
-    }
-    .build();
+    let config = ConfigBuilder::default()
+        .transporter(Transporter::nats("nats://localhost:4222"))
+        .build();
 
     let math_action = ActionBuilder::new("mathAdd").add_callback(math_add).build();
     let greeter_service = Service::new("rustMath").add_action(math_action);
