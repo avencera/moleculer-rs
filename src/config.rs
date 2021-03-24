@@ -32,7 +32,7 @@ pub struct Config {
     pub(crate) logger: Logger,
     #[builder(default = "log::Level::Info")]
     pub(crate) log_level: log::Level,
-    #[builder(default = "Transporter::Nats(\"nats://localhost:4222\".to_string())")]
+    #[builder(default = "Transporter::nats(\"nats://localhost:4222\")")]
     pub(crate) transporter: Transporter,
     #[builder(default = "1000 * 60 * 5")]
     pub(crate) request_timeout: i32,
