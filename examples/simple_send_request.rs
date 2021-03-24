@@ -31,13 +31,12 @@ async fn main() -> eyre::Result<()> {
 }
 
 fn ask_node_for_answer(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
-    let broker = ctx.broker.clone();
-
     tokio::spawn(async move {
         let a = 10;
         let b = 78;
 
-        let response = broker
+        let response = ctx
+            .broker
             .call("greeter.math.add.js", json!({"a": a, "b": b}))
             .await;
 

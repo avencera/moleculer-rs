@@ -4,6 +4,7 @@
 
 - Improved cargo docs
 - Created `CHANGELOG.md`
+- Adjusted visibility, default to `pub(crate)` when `pub` not needed
 
 ## [0.1.1] – 2021-03-23
 
