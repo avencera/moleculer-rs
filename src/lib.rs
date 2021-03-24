@@ -10,6 +10,14 @@ However it only works with the `NATS` transporter and `JSON` serializer/deserial
 Simple example showing how to receive an event, for more check the [examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples)
 
 ```rust
+use std::error::Error;
+use moleculer::{
+    config::{ConfigBuilder, Transporter},
+    service::{Context, Event, EventBuilder, Service},
+    ServiceBroker,
+};
+use serde::Deserialize;
+
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     env_logger::init();

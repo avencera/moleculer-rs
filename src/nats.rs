@@ -5,7 +5,7 @@ use thiserror::Error;
 type Result<T> = std::result::Result<T, self::Error>;
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     #[error("Unable to connect to NATS: {0}")]
     UnableToConnect(std::io::Error),
     #[error("Unable to subscribe to channel ({0}): {1}")]
@@ -13,12 +13,12 @@ pub enum Error {
 }
 
 #[derive(Clone)]
-pub struct Conn {
-    pub conn: Connection,
+pub(crate) struct Conn {
+    pub(crate) conn: Connection,
 }
 
 impl Conn {
-    pub async fn new(nats_address: &str) -> Result<Conn> {
+    pub(crate) async fn new(nats_address: &str) -> Result<Conn> {
         let conn = async_nats::connect(nats_address)
             .await
             .map_err(Error::UnableToConnect)?;
@@ -26,7 +26,7 @@ impl Conn {
         Ok(Conn { conn })
     }
 
-    pub async fn send(&self, channel: &str, message: Vec<u8>) -> Result<()> {
+    pub(crate) async fn send(&self, channel: &str, message: Vec<u8>) -> Result<()> {
         let mut retries: i8 = 0;
         let mut result = self.conn.publish(channel, &message).await;
 
@@ -48,7 +48,7 @@ impl Conn {
         Ok(())
     }
 
-    pub async fn subscribe(&self, channel: &str) -> Result<Subscription> {
+    pub(crate) async fn subscribe(&self, channel: &str) -> Result<Subscription> {
         Ok(self
             .conn
             .subscribe(channel)

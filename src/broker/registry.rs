@@ -18,9 +18,9 @@ use async_trait::async_trait;
 
 use super::ServiceBroker;
 
-pub type ActionName = String;
-pub type EventName = String;
-pub type NodeName = String;
+pub(crate) type ActionName = String;
+pub(crate) type EventName = String;
+pub(crate) type NodeName = String;
 
 pub(crate) struct Registry {
     actions: HashMap<EventName, QueueSet<NodeName>>,
@@ -169,7 +169,7 @@ impl Registry {
 }
 
 #[derive(Debug, Clone)]
-pub struct Node {
+pub(crate) struct Node {
     node_watcher_pid: Addr<NodeWatcher>,
 
     pub(crate) name: NodeName,
@@ -248,7 +248,11 @@ struct NodeWatcher {
 }
 
 impl NodeWatcher {
-    pub fn new(name: NodeName, heartbeat_timeout: u32, broker: WeakAddr<ServiceBroker>) -> Self {
+    pub(crate) fn new(
+        name: NodeName,
+        heartbeat_timeout: u32,
+        broker: WeakAddr<ServiceBroker>,
+    ) -> Self {
         Self {
             node_name: name,
             pid: WeakAddr::detached(),
@@ -260,7 +264,7 @@ impl NodeWatcher {
         }
     }
 
-    pub async fn received_heartbeat(&mut self) {
+    pub(crate) async fn received_heartbeat(&mut self) {
         self.last_heartbeat = Instant::now()
     }
 }

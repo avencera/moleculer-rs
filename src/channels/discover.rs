@@ -26,7 +26,7 @@ impl Actor for Discover {
         false
     }
 }
-pub struct Discover {
+pub(crate) struct Discover {
     broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     parent: WeakAddr<ChannelSupervisor>,
@@ -34,7 +34,7 @@ pub struct Discover {
 }
 
 impl Discover {
-    pub async fn new(
+    pub(crate) async fn new(
         broker: WeakAddr<ServiceBroker>,
         parent: WeakAddr<ChannelSupervisor>,
         config: &Arc<Config>,
@@ -48,7 +48,7 @@ impl Discover {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCOVER messages");
         let channel = self
             .conn
@@ -66,7 +66,7 @@ impl Discover {
         })
     }
 
-    pub async fn broadcast(&self) {
+    pub(crate) async fn broadcast(&self) {
         let msg = outgoing::DiscoverMessage::new(&self.config.node_id);
         send!(self.parent.publish(
             Channel::Discover,
@@ -108,14 +108,18 @@ impl Actor for DiscoverTargeted {
 }
 
 // This one shouldn't be used to much, DISCOVER packets are usually sent to the DISCOVER broadcast channel
-pub struct DiscoverTargeted {
+pub(crate) struct DiscoverTargeted {
     broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     conn: Conn,
 }
 
 impl DiscoverTargeted {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(
+        broker: WeakAddr<ServiceBroker>,
+        config: &Arc<Config>,
+        conn: &Conn,
+    ) -> Self {
         Self {
             broker,
             conn: conn.clone(),
@@ -123,7 +127,7 @@ impl DiscoverTargeted {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCOVER (targeted) messages");
         let channel = self
             .conn

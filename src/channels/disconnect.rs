@@ -26,14 +26,18 @@ impl Actor for Disconnect {
         false
     }
 }
-pub struct Disconnect {
+pub(crate) struct Disconnect {
     broker: WeakAddr<ServiceBroker>,
     config: Arc<Config>,
     conn: Conn,
 }
 
 impl Disconnect {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(
+        broker: WeakAddr<ServiceBroker>,
+        config: &Arc<Config>,
+        conn: &Conn,
+    ) -> Self {
         Self {
             broker,
             conn: conn.clone(),
@@ -41,7 +45,7 @@ impl Disconnect {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCONNECT messages");
 
         let channel = self

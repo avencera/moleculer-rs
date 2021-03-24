@@ -29,7 +29,7 @@ use thiserror::Error;
 use self::registry::Registry;
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     #[error(transparent)]
     ChannelError(#[from] channels::Error),
 
@@ -59,7 +59,7 @@ pub enum Error {
 }
 
 #[allow(dead_code)]
-pub struct ServiceBroker {
+pub(crate) struct ServiceBroker {
     pub(crate) namespace: String,
     pub(crate) node_id: String,
     pub(crate) instance_id: String,
@@ -76,8 +76,8 @@ pub struct ServiceBroker {
     config: Arc<config::Config>,
 }
 
-pub struct Events(HashMap<String, Event>);
-pub struct Actions(HashMap<String, Action>);
+pub(crate) struct Events(HashMap<String, Event>);
+pub(crate) struct Actions(HashMap<String, Action>);
 
 impl Events {
     fn new() -> Self {

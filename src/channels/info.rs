@@ -26,14 +26,18 @@ impl Actor for Info {
         false
     }
 }
-pub struct Info {
+pub(crate) struct Info {
     config: Arc<Config>,
     broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl Info {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(
+        broker: WeakAddr<ServiceBroker>,
+        config: &Arc<Config>,
+        conn: &Conn,
+    ) -> Self {
         Self {
             broker,
             conn: conn.clone(),
@@ -42,7 +46,7 @@ impl Info {
     }
 
     // INFO packets received when a new client connects and broadcasts it's INFO
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for INFO messages");
         let channel = self
             .conn
@@ -83,14 +87,18 @@ impl Actor for InfoTargeted {
         false
     }
 }
-pub struct InfoTargeted {
+pub(crate) struct InfoTargeted {
     config: Arc<Config>,
     broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl InfoTargeted {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(
+        broker: WeakAddr<ServiceBroker>,
+        config: &Arc<Config>,
+        conn: &Conn,
+    ) -> Self {
         Self {
             broker,
             conn: conn.clone(),
@@ -98,7 +106,7 @@ impl InfoTargeted {
         }
     }
     // INFO packets received are responses to DISCOVER packet sent by current client
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for INFO (targeted) messages");
 
         let channel = self

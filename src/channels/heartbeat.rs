@@ -15,7 +15,7 @@ use log::{debug, error, info};
 use std::{sync::Arc, time::Duration};
 use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
 
-pub struct Heartbeat {
+pub(crate) struct Heartbeat {
     pid: Addr<Self>,
     config: Arc<Config>,
     timer: Timer,
@@ -68,7 +68,7 @@ impl Tick for Heartbeat {
 }
 
 impl Heartbeat {
-    pub async fn new(
+    pub(crate) async fn new(
         parent: WeakAddr<ChannelSupervisor>,
         broker: WeakAddr<ServiceBroker>,
         config: &Arc<Config>,
@@ -86,7 +86,7 @@ impl Heartbeat {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for HEARTBEAT messages");
 
         let channel = self

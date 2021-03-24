@@ -26,7 +26,7 @@ impl Actor for Pong {
     }
 }
 #[allow(dead_code)]
-pub struct Pong {
+pub(crate) struct Pong {
     config: Arc<Config>,
     channel: Subscription,
     parent: WeakAddr<ChannelSupervisor>,
@@ -42,7 +42,7 @@ pub struct Pong {
 // }
 
 impl Pong {
-    pub async fn new(
+    pub(crate) async fn new(
         parent: WeakAddr<ChannelSupervisor>,
         config: &Arc<Config>,
         conn: &Conn,
@@ -57,7 +57,7 @@ impl Pong {
         }
     }
 
-    pub async fn listen(&mut self, _pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, _pid: Addr<Self>) {
         info!("Listening for PONG messages");
 
         while let Some(msg) = self.channel.next().await {

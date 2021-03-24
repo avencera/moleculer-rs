@@ -31,14 +31,14 @@ impl Actor for Response {
         false
     }
 }
-pub struct Response {
+pub(crate) struct Response {
     config: Arc<Config>,
     waiters: HashMap<RequestId, Addr<ResponseWaiter>>,
     conn: Conn,
 }
 
 impl Response {
-    pub async fn new(config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(config: &Arc<Config>, conn: &Conn) -> Self {
         Self {
             conn: conn.clone(),
             config: Arc::clone(config),
@@ -46,7 +46,7 @@ impl Response {
         }
     }
 
-    pub async fn start_response_waiter(
+    pub(crate) async fn start_response_waiter(
         &mut self,
         timeout: i32,
         node_name: String,
@@ -63,7 +63,7 @@ impl Response {
         self.waiters.insert(request_id, response_waiter_pid);
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for RESPONSE messages");
         let channel = self
             .conn

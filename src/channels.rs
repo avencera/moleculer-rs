@@ -1,4 +1,4 @@
-pub mod messages;
+pub(crate) mod messages;
 
 mod event;
 
@@ -43,7 +43,7 @@ use self::{
 };
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     #[error("Unable to start listeners actor")]
     UnableToStartListeners,
 
@@ -71,7 +71,7 @@ impl Actor for ChannelSupervisor {
     }
 }
 
-pub struct ChannelSupervisor {
+pub(crate) struct ChannelSupervisor {
     broker: Addr<ServiceBroker>,
 
     conn: nats::Conn,
@@ -190,11 +190,15 @@ impl ChannelSupervisor {
         Produces::ok(())
     }
 
-    pub async fn broadcast_discover(&self) {
+    pub(crate) async fn broadcast_discover(&self) {
         send!(self.discover.broadcast());
     }
 
-    pub async fn publish_to_channel<T>(&self, channel: T, message: Vec<u8>) -> ActorResult<()>
+    pub(crate) async fn publish_to_channel<T>(
+        &self,
+        channel: T,
+        message: Vec<u8>,
+    ) -> ActorResult<()>
     where
         T: AsRef<str>,
     {
@@ -207,7 +211,7 @@ impl ChannelSupervisor {
         Produces::ok(())
     }
 
-    pub async fn start_response_waiter(
+    pub(crate) async fn start_response_waiter(
         &self,
         node_name: String,
         request_id: String,
@@ -249,7 +253,7 @@ impl ChannelSupervisor {
     }
 }
 
-pub async fn start_supervisor(
+pub(crate) async fn start_supervisor(
     broker: Addr<ServiceBroker>,
     config: Arc<Config>,
 ) -> Result<Addr<ChannelSupervisor>, Error> {
@@ -262,7 +266,7 @@ pub async fn start_supervisor(
     Ok(channel_supervisor)
 }
 
-pub async fn listen_for_disconnect(supervisor: Addr<ChannelSupervisor>) {
+pub(crate) async fn listen_for_disconnect(supervisor: Addr<ChannelSupervisor>) {
     // detects SIGTERM and sends disconnect package
     let _ = ctrlc::set_handler(move || {
         send!(supervisor.send_disconnect());

@@ -29,14 +29,14 @@ impl Actor for Ping {
         false
     }
 }
-pub struct Ping {
+pub(crate) struct Ping {
     config: Arc<Config>,
     conn: Conn,
     parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl Ping {
-    pub async fn new(
+    pub(crate) async fn new(
         parent: WeakAddr<ChannelSupervisor>,
         config: &Arc<Config>,
         conn: &Conn,
@@ -48,7 +48,7 @@ impl Ping {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PING messages");
 
         let channel = self
@@ -100,14 +100,14 @@ impl Actor for PingTargeted {
         false
     }
 }
-pub struct PingTargeted {
+pub(crate) struct PingTargeted {
     config: Arc<Config>,
     conn: Conn,
     parent: WeakAddr<ChannelSupervisor>,
 }
 
 impl PingTargeted {
-    pub async fn new(
+    pub(crate) async fn new(
         parent: WeakAddr<ChannelSupervisor>,
         config: &Arc<Config>,
         conn: &Conn,
@@ -119,7 +119,7 @@ impl PingTargeted {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PING (targeted) messages");
 
         let channel = self

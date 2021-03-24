@@ -14,7 +14,7 @@ use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum Error {}
+pub(crate) enum Error {}
 
 #[async_trait]
 impl Actor for Event {
@@ -31,14 +31,18 @@ impl Actor for Event {
         false
     }
 }
-pub struct Event {
+pub(crate) struct Event {
     config: Arc<Config>,
     broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl Event {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(
+        broker: WeakAddr<ServiceBroker>,
+        config: &Arc<Config>,
+        conn: &Conn,
+    ) -> Self {
         Self {
             broker,
             conn: conn.clone(),
@@ -46,7 +50,7 @@ impl Event {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for EVENT messages");
         let channel = self
             .conn

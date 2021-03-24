@@ -27,14 +27,18 @@ impl Actor for Request {
         false
     }
 }
-pub struct Request {
+pub(crate) struct Request {
     config: Arc<Config>,
     broker: WeakAddr<ServiceBroker>,
     conn: Conn,
 }
 
 impl Request {
-    pub async fn new(broker: WeakAddr<ServiceBroker>, config: &Arc<Config>, conn: &Conn) -> Self {
+    pub(crate) async fn new(
+        broker: WeakAddr<ServiceBroker>,
+        config: &Arc<Config>,
+        conn: &Conn,
+    ) -> Self {
         Self {
             broker,
             conn: conn.clone(),
@@ -42,7 +46,7 @@ impl Request {
         }
     }
 
-    pub async fn listen(&mut self, pid: Addr<Self>) {
+    pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for REQUEST messages");
         let channel = self
             .conn

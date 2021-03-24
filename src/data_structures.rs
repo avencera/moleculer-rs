@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use std::hash::Hash;
 
 #[derive(Debug)]
-pub struct QueueSet<T> {
+pub(crate) struct QueueSet<T> {
     set: HashSet<T>,
     queue: VecDeque<T>,
 }

@@ -10,7 +10,7 @@ fn random_string_iter(take: usize) -> impl Iterator<Item = char> {
         .map(char::from)
 }
 
-pub fn gen_node_id() -> String {
+pub(crate) fn gen_node_id() -> String {
     let random_string_length = 6;
 
     let pid = std::process::id().to_string();
@@ -29,7 +29,7 @@ pub fn gen_node_id() -> String {
     node_id.to_lowercase()
 }
 
-pub fn hostname() -> Cow<'static, str> {
+pub(crate) fn hostname() -> Cow<'static, str> {
     hostname::get()
         .map(|s| Cow::Owned(s.to_string_lossy().to_string().to_lowercase()))
         .unwrap_or_else(|_| Cow::Borrowed("unknown_host_name"))

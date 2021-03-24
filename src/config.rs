@@ -104,27 +104,27 @@ impl Default for ConfigBuilder {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
-    pub namespace: String,
+    pub(crate) namespace: String,
     #[serde(rename = "nodeID")]
-    pub node_id: String,
-    pub logger: Logger,
-    pub log_level: log::Level,
-    pub transporter: Transporter,
-    pub request_timeout: i32,
-    pub retry_policy: RetryPolicy,
-    pub context_params_cloning: bool,
-    pub dependency_internal: u32,
-    pub max_call_level: u32,
-    pub heartbeat_interval: u32,
-    pub heartbeat_timeout: u32,
-    pub tracking: Tracking,
-    pub disable_balancer: bool,
-    pub registry: Registry,
-    pub circuit_breaker: CircuitBreaker,
-    pub bulkhead: Bulkhead,
-    pub transit: Transit,
-    pub serializer: Serializer,
-    pub meta_data: HashMap<String, String>,
+    pub(crate) node_id: String,
+    pub(crate) logger: Logger,
+    pub(crate) log_level: log::Level,
+    pub(crate) transporter: Transporter,
+    pub(crate) request_timeout: i32,
+    pub(crate) retry_policy: RetryPolicy,
+    pub(crate) context_params_cloning: bool,
+    pub(crate) dependency_internal: u32,
+    pub(crate) max_call_level: u32,
+    pub(crate) heartbeat_interval: u32,
+    pub(crate) heartbeat_timeout: u32,
+    pub(crate) tracking: Tracking,
+    pub(crate) disable_balancer: bool,
+    pub(crate) registry: Registry,
+    pub(crate) circuit_breaker: CircuitBreaker,
+    pub(crate) bulkhead: Bulkhead,
+    pub(crate) transit: Transit,
+    pub(crate) serializer: Serializer,
+    pub(crate) meta_data: HashMap<String, String>,
 
     pub(crate) ip_list: Vec<String>,
     pub(crate) hostname: String,
@@ -170,13 +170,16 @@ pub enum Serializer {
 }
 
 impl Serializer {
-    pub fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
+    pub(crate) fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
         match self {
             Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
         }
     }
 
-    pub fn deserialize<T: DeserializeOwned>(&self, msg: &[u8]) -> Result<T, DeserializeError> {
+    pub(crate) fn deserialize<T: DeserializeOwned>(
+        &self,
+        msg: &[u8],
+    ) -> Result<T, DeserializeError> {
         match self {
             Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
         }
@@ -289,13 +292,13 @@ pub enum Channel {
 }
 
 impl Channel {
-    pub fn build_hashmap(config: &Config) -> HashMap<Channel, String> {
+    pub(crate) fn build_hashmap(config: &Config) -> HashMap<Channel, String> {
         Channel::iter()
             .map(|channel| (channel.clone(), channel.channel_to_string(config)))
             .collect()
     }
 
-    pub fn channel_to_string(&self, config: &Config) -> String {
+    pub(crate) fn channel_to_string(&self, config: &Config) -> String {
         match self {
             Channel::Event => format!("{}.EVENT.{}", mol(&config), &config.node_id),
             Channel::Request => format!("{}.REQ.{}", mol(&config), &config.node_id),
@@ -313,7 +316,7 @@ impl Channel {
         }
     }
 
-    pub fn external_channel<S>(&self, config: &Config, node_name: S) -> String
+    pub(crate) fn external_channel<S>(&self, config: &Config, node_name: S) -> String
     where
         S: AsRef<str> + Display,
     {
@@ -327,13 +330,13 @@ impl Channel {
 }
 
 #[derive(Error, Debug)]
-pub enum SerializeError {
+pub(crate) enum SerializeError {
     #[error("Unable to serialize to json: {0}")]
     JSON(serde_json::error::Error),
 }
 
 #[derive(Error, Debug)]
-pub enum DeserializeError {
+pub(crate) enum DeserializeError {
     #[error("Unable to deserialize from json: {0}")]
     JSON(serde_json::error::Error),
 }

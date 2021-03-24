@@ -1,4 +1,4 @@
-pub mod incoming {
+pub(crate) mod incoming {
     use std::collections::HashMap;
 
     use serde::Deserialize;
@@ -8,7 +8,7 @@ pub mod incoming {
 
     #[derive(Deserialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
-    pub struct Client {
+    pub(crate) struct Client {
         #[serde(rename = "type")]
         type_: String,
         version: String,
@@ -16,146 +16,146 @@ pub mod incoming {
     }
 
     #[derive(Deserialize, Debug)]
-    pub struct PingMessage {
-        pub ver: String,
-        pub sender: String,
-        pub id: String,
-        pub time: i64,
+    pub(crate) struct PingMessage {
+        pub(crate) ver: String,
+        pub(crate) sender: String,
+        pub(crate) id: String,
+        pub(crate) time: i64,
     }
 
     #[derive(Deserialize, Debug)]
-    pub struct HeartbeatMessage {
-        pub ver: String,
-        pub sender: String,
-        pub cpu: f32,
+    pub(crate) struct HeartbeatMessage {
+        pub(crate) ver: String,
+        pub(crate) sender: String,
+        pub(crate) cpu: f32,
     }
 
     #[derive(Deserialize, Debug)]
-    pub struct DisconnectMessage {
-        pub ver: String,
-        pub sender: String,
+    pub(crate) struct DisconnectMessage {
+        pub(crate) ver: String,
+        pub(crate) sender: String,
     }
 
     #[derive(Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
-    pub struct InfoMessage {
-        pub ver: String,
-        pub sender: String,
+    pub(crate) struct InfoMessage {
+        pub(crate) ver: String,
+        pub(crate) sender: String,
 
-        pub services: Vec<Service>,
-        pub ip_list: Vec<String>,
-        pub hostname: String,
-        pub client: Client,
+        pub(crate) services: Vec<Service>,
+        pub(crate) ip_list: Vec<String>,
+        pub(crate) hostname: String,
+        pub(crate) client: Client,
 
         #[serde(rename = "instanceID")]
-        pub instance_id: String,
+        pub(crate) instance_id: String,
 
-        pub config: HashMap<String, String>,
-        pub metadata: HashMap<String, String>,
+        pub(crate) config: HashMap<String, String>,
+        pub(crate) metadata: HashMap<String, String>,
     }
 
     #[derive(Deserialize, Debug)]
-    pub struct DiscoverMessage {
-        pub ver: String,
-        pub sender: String,
+    pub(crate) struct DiscoverMessage {
+        pub(crate) ver: String,
+        pub(crate) sender: String,
     }
 
     #[derive(Deserialize, Debug)]
-    pub struct EventMessage {
-        pub id: String,
-        pub sender: String,
-        pub ver: String,
+    pub(crate) struct EventMessage {
+        pub(crate) id: String,
+        pub(crate) sender: String,
+        pub(crate) ver: String,
 
-        pub event: String,
-
-        #[serde(default)]
-        pub data: Value,
+        pub(crate) event: String,
 
         #[serde(default)]
-        pub meta: Value,
-        pub level: i32,
+        pub(crate) data: Value,
 
         #[serde(default)]
-        pub tracing: Option<bool>,
+        pub(crate) meta: Value,
+        pub(crate) level: i32,
+
+        #[serde(default)]
+        pub(crate) tracing: Option<bool>,
 
         #[serde(rename = "parentID", default)]
-        pub parent_id: Option<String>,
+        pub(crate) parent_id: Option<String>,
 
         #[serde(rename = "requestID", default)]
-        pub request_id: Option<String>,
+        pub(crate) request_id: Option<String>,
 
         #[serde(rename = "caller", default)]
-        pub caller: Option<String>,
+        pub(crate) caller: Option<String>,
 
         #[serde(default)]
-        pub stream: Option<bool>,
+        pub(crate) stream: Option<bool>,
 
         #[serde(default)]
-        pub seq: Option<i32>,
+        pub(crate) seq: Option<i32>,
 
         #[serde(default)]
-        pub groups: Option<Vec<String>>,
+        pub(crate) groups: Option<Vec<String>>,
 
         #[serde(default)]
-        pub broadcast: Option<bool>,
+        pub(crate) broadcast: Option<bool>,
     }
 
     #[derive(Deserialize, Debug)]
-    pub struct RequestMessage {
-        pub id: String,
-        pub sender: String,
-        pub ver: String,
+    pub(crate) struct RequestMessage {
+        pub(crate) id: String,
+        pub(crate) sender: String,
+        pub(crate) ver: String,
 
-        pub action: String,
-
-        #[serde(default)]
-        pub params: Value,
+        pub(crate) action: String,
 
         #[serde(default)]
-        pub meta: Value,
-
-        pub timeout: f32,
-        pub level: i32,
+        pub(crate) params: Value,
 
         #[serde(default)]
-        pub tracing: Option<bool>,
+        pub(crate) meta: Value,
+
+        pub(crate) timeout: f32,
+        pub(crate) level: i32,
+
+        #[serde(default)]
+        pub(crate) tracing: Option<bool>,
 
         #[serde(rename = "parentID", default)]
-        pub parent_id: Option<String>,
+        pub(crate) parent_id: Option<String>,
 
         #[serde(rename = "requestID", default)]
-        pub request_id: String,
+        pub(crate) request_id: String,
 
         #[serde(rename = "caller", default)]
-        pub caller: Option<String>,
+        pub(crate) caller: Option<String>,
 
         #[serde(default)]
-        pub stream: Option<bool>,
+        pub(crate) stream: Option<bool>,
 
         #[serde(default)]
-        pub seq: Option<i32>,
+        pub(crate) seq: Option<i32>,
     }
     #[derive(Deserialize, Debug)]
-    pub struct ResponseMessage {
-        pub id: String,
-        pub sender: String,
-        pub ver: String,
+    pub(crate) struct ResponseMessage {
+        pub(crate) id: String,
+        pub(crate) sender: String,
+        pub(crate) ver: String,
 
         #[serde(default)]
-        pub data: Value,
+        pub(crate) data: Value,
 
         #[serde(default)]
-        pub meta: Value,
+        pub(crate) meta: Value,
 
         #[serde(default)]
-        pub error: Option<crate::channels::messages::MoleculerError>,
+        pub(crate) error: Option<crate::channels::messages::MoleculerError>,
 
         #[serde(default)]
-        pub success: bool,
+        pub(crate) success: bool,
     }
 }
 
-pub mod outgoing {
+pub(crate) mod outgoing {
     use std::{collections::HashMap, time::SystemTime};
 
     use super::incoming::PingMessage;
@@ -166,7 +166,7 @@ pub mod outgoing {
 
     #[derive(Serialize, Debug)]
     #[serde(rename_all = "camelCase")]
-    pub struct Client {
+    pub(crate) struct Client {
         #[serde(rename = "type")]
         type_: &'static str,
         version: &'static str,
@@ -184,7 +184,7 @@ pub mod outgoing {
     }
 
     #[derive(Serialize)]
-    pub struct PongMessage<'a> {
+    pub(crate) struct PongMessage<'a> {
         ver: String,
         sender: &'a str,
         id: String,
@@ -210,14 +210,14 @@ pub mod outgoing {
     }
 
     #[derive(Serialize)]
-    pub struct HeartbeatMessage<'a> {
+    pub(crate) struct HeartbeatMessage<'a> {
         ver: &'static str,
         sender: &'a str,
         cpu: f32,
     }
 
     impl<'a> HeartbeatMessage<'a> {
-        pub fn new(sender: &'a str, cpu: f32) -> Self {
+        pub(crate) fn new(sender: &'a str, cpu: f32) -> Self {
             Self {
                 ver: "4",
                 sender,
@@ -227,32 +227,32 @@ pub mod outgoing {
     }
 
     #[derive(Serialize)]
-    pub struct DisconnectMessage<'a> {
+    pub(crate) struct DisconnectMessage<'a> {
         ver: &'static str,
         sender: &'a str,
     }
 
     impl<'a> DisconnectMessage<'a> {
-        pub fn new(sender: &'a str) -> Self {
+        pub(crate) fn new(sender: &'a str) -> Self {
             Self { ver: "4", sender }
         }
     }
 
     #[derive(Serialize)]
-    pub struct DiscoverMessage<'a> {
+    pub(crate) struct DiscoverMessage<'a> {
         ver: &'static str,
         sender: &'a str,
     }
 
     impl<'a> DiscoverMessage<'a> {
-        pub fn new(sender: &'a str) -> Self {
+        pub(crate) fn new(sender: &'a str) -> Self {
             Self { ver: "4", sender }
         }
     }
 
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct InfoMessage<'a> {
+    pub(crate) struct InfoMessage<'a> {
         ver: &'static str,
         sender: &'a str,
 
@@ -268,7 +268,7 @@ pub mod outgoing {
     }
 
     impl<'a> InfoMessage<'a> {
-        pub fn new(config: &'a Config, services: &'a [Service]) -> Self {
+        pub(crate) fn new(config: &'a Config, services: &'a [Service]) -> Self {
             Self {
                 ver: "4",
                 sender: &config.node_id,
@@ -286,43 +286,43 @@ pub mod outgoing {
     }
 
     #[derive(Serialize, Debug)]
-    pub struct EventMessage<'a> {
-        pub id: String,
-        pub sender: &'a str,
-        pub ver: &'static str,
+    pub(crate) struct EventMessage<'a> {
+        pub(crate) id: String,
+        pub(crate) sender: &'a str,
+        pub(crate) ver: &'static str,
 
-        pub event: &'a str,
-
-        #[serde(default)]
-        pub data: Value,
+        pub(crate) event: &'a str,
 
         #[serde(default)]
-        pub meta: Value,
-        pub level: i32,
+        pub(crate) data: Value,
 
         #[serde(default)]
-        pub tracing: Option<bool>,
+        pub(crate) meta: Value,
+        pub(crate) level: i32,
+
+        #[serde(default)]
+        pub(crate) tracing: Option<bool>,
 
         #[serde(rename = "parentID", default)]
-        pub parent_id: &'a Option<String>,
+        pub(crate) parent_id: &'a Option<String>,
 
         #[serde(rename = "requestID", default)]
-        pub request_id: &'a Option<String>,
+        pub(crate) request_id: &'a Option<String>,
 
         #[serde(rename = "caller", default)]
-        pub caller: &'a Option<String>,
+        pub(crate) caller: &'a Option<String>,
 
         #[serde(default)]
-        pub stream: Option<bool>,
+        pub(crate) stream: Option<bool>,
 
         #[serde(default)]
-        pub seq: Option<i32>,
+        pub(crate) seq: Option<i32>,
 
         #[serde(default)]
-        pub groups: Option<Vec<String>>,
+        pub(crate) groups: Option<Vec<String>>,
 
         #[serde(default)]
-        pub broadcast: Option<bool>,
+        pub(crate) broadcast: Option<bool>,
     }
 
     impl<'a> EventMessage<'a> {
@@ -358,22 +358,22 @@ pub mod outgoing {
     }
 
     #[derive(Serialize, Debug)]
-    pub struct ResponseMessage<'a> {
-        pub id: &'a str,
-        pub sender: &'a str,
-        pub ver: &'static str,
+    pub(crate) struct ResponseMessage<'a> {
+        pub(crate) id: &'a str,
+        pub(crate) sender: &'a str,
+        pub(crate) ver: &'static str,
 
         #[serde(default)]
-        pub data: Value,
+        pub(crate) data: Value,
 
         #[serde(default)]
-        pub meta: Value,
+        pub(crate) meta: Value,
 
         #[serde(default)]
-        pub error: Option<crate::channels::messages::MoleculerError>,
+        pub(crate) error: Option<crate::channels::messages::MoleculerError>,
 
         #[serde(default)]
-        pub success: bool,
+        pub(crate) success: bool,
     }
 
     impl<'a> ResponseMessage<'a> {
@@ -391,39 +391,39 @@ pub mod outgoing {
     }
 
     #[derive(Serialize, Debug)]
-    pub struct RequestMessage<'a> {
-        pub id: String,
-        pub sender: &'a str,
-        pub ver: &'static str,
+    pub(crate) struct RequestMessage<'a> {
+        pub(crate) id: String,
+        pub(crate) sender: &'a str,
+        pub(crate) ver: &'static str,
 
-        pub action: &'a str,
-
-        #[serde(default)]
-        pub params: Value,
+        pub(crate) action: &'a str,
 
         #[serde(default)]
-        pub meta: Value,
-
-        pub timeout: f32,
-        pub level: i32,
+        pub(crate) params: Value,
 
         #[serde(default)]
-        pub tracing: Option<bool>,
+        pub(crate) meta: Value,
+
+        pub(crate) timeout: f32,
+        pub(crate) level: i32,
+
+        #[serde(default)]
+        pub(crate) tracing: Option<bool>,
 
         #[serde(rename = "parentID", default)]
-        pub parent_id: Option<&'a str>,
+        pub(crate) parent_id: Option<&'a str>,
 
         #[serde(rename = "requestID", default)]
-        pub request_id: String,
+        pub(crate) request_id: String,
 
         #[serde(rename = "caller", default)]
-        pub caller: Option<&'a str>,
+        pub(crate) caller: Option<&'a str>,
 
         #[serde(default)]
-        pub stream: Option<bool>,
+        pub(crate) stream: Option<bool>,
 
         #[serde(default)]
-        pub seq: Option<i32>,
+        pub(crate) seq: Option<i32>,
     }
 
     impl<'a> RequestMessage<'a> {
@@ -457,7 +457,7 @@ pub mod outgoing {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct MoleculerError {
+pub(crate) struct MoleculerError {
     message: String,
     code: i8,
     #[serde(rename = "type")]

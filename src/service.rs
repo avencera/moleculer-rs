@@ -17,7 +17,7 @@ pub struct Action {
     #[serde(default)]
     params: Option<Value>,
     #[serde(skip)]
-    pub(crate) callback: Option<Callback<Action>>,
+    pub callback: Option<Callback<Action>>,
 }
 
 #[derive(Default, Debug)]
@@ -33,7 +33,7 @@ pub struct Event {
     #[serde(default)]
     params: Option<Value>,
     #[serde(skip)]
-    pub(crate) callback: Option<Callback<Event>>,
+    pub callback: Option<Callback<Event>>,
 }
 
 impl EventBuilder {
@@ -109,8 +109,8 @@ pub struct Service {
     #[serde(default)]
     metadata: Option<Value>,
 
-    pub(crate) actions: HashMap<String, Action>,
-    pub(crate) events: HashMap<String, Event>,
+    pub actions: HashMap<String, Action>,
+    pub events: HashMap<String, Event>,
 }
 
 impl Service {
@@ -168,7 +168,7 @@ pub struct Context<T> {
 }
 
 impl Context<Event> {
-    pub fn new(event_message: EventMessage, service_broker: ServiceBroker) -> Self {
+    pub(crate) fn new(event_message: EventMessage, service_broker: ServiceBroker) -> Self {
         let event_type = if event_message.broadcast.unwrap_or(false) {
             EventType::Broadcast
         } else {
@@ -202,7 +202,7 @@ impl Context<Event> {
 }
 
 impl Context<Action> {
-    pub fn new(request_message: RequestMessage, service_broker: ServiceBroker) -> Self {
+    pub(crate) fn new(request_message: RequestMessage, service_broker: ServiceBroker) -> Self {
         Self {
             phantom: PhantomData,
 

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use moleculer_rs::{
+use moleculer::{
     config::{ConfigBuilder, Transporter},
     service::{Context, Event, EventBuilder, Service},
     ServiceBroker,
