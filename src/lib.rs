@@ -12,12 +12,13 @@ Simple example showing how to receive an event, and responding to a request, for
 
 ```rust
 use std::error::Error;
+use serde::Deserialize;
+
 use moleculer::{
     config::{ConfigBuilder, Transporter},
     service::{Context, Event, EventBuilder, Service},
     ServiceBroker,
 };
-use serde::Deserialize;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
