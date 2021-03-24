@@ -1,3 +1,5 @@
+//! Create [Config] struct with global settings for you micro-service
+
 use crate::util;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;

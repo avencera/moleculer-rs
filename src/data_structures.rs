@@ -49,6 +49,7 @@ where
 
 mod macros {
     #[macro_export]
+    #[doc(hidden)]
     macro_rules! qset{
     (@single $($x:tt)*) => (());
     (@count $($rest:expr),*) => (<[()]>::len(&[$(qset!(@single $rest)),*]));

@@ -1,3 +1,5 @@
+//! Create [Service] struct with [Events][Event] and [Actions][Action]
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, marker::PhantomData};
