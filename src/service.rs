@@ -1,4 +1,28 @@
-//! Create [Service] struct with [Events][Event] and [Actions][Action]
+/*!
+Create [Service] struct with [Events][Event] and [Actions][Action].
+
+```rust
+let greeter_service = Service::new("rustGreeter")
+    .add_event(print_hi)
+    .add_event(print_name)
+    .add_action(math_action);
+
+// callback for first event, will be called whenever "printHi" event is received
+fn print_hi(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
+  {...}
+}
+
+// callback for second event, will be called whenever "printName" event is received
+fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
+   {...}
+}
+
+// callback for math action
+fn math_add(ctx: Context<Action>) -> Result<(), Box<dyn Error>> {
+   {...}
+}
+```
+*/
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -6,20 +30,23 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use crate::{
     channels::messages::incoming::{EventMessage, RequestMessage},
-    ServiceBroker,
+    Error, ServiceBroker,
 };
 
+/// Function that is called when an [Event] or [Action] is received.
 pub type Callback<T> = fn(Context<T>) -> Result<(), Box<dyn std::error::Error>>;
 
+/// Build using [ActionBuilder].
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Action {
     name: String,
     #[serde(default)]
     params: Option<Value>,
     #[serde(skip)]
-    pub callback: Option<Callback<Action>>,
+    pub(crate) callback: Option<Callback<Action>>,
 }
 
+/// Builder for [Event].
 #[derive(Default, Debug)]
 pub struct EventBuilder {
     name: String,
@@ -27,13 +54,14 @@ pub struct EventBuilder {
     callback: Option<Callback<Event>>,
 }
 
+/// Build using [EventBuilder]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     name: String,
     #[serde(default)]
     params: Option<Value>,
     #[serde(skip)]
-    pub callback: Option<Callback<Event>>,
+    pub(crate) callback: Option<Callback<Event>>,
 }
 
 impl EventBuilder {
@@ -63,6 +91,7 @@ impl EventBuilder {
     }
 }
 
+/// Builder for [Action]
 #[derive(Default, Debug)]
 pub struct ActionBuilder {
     name: String,
@@ -97,6 +126,7 @@ impl ActionBuilder {
     }
 }
 
+/// A Moleculer service containing [Events][Event] and [Actions][Action]
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Service {
@@ -109,8 +139,8 @@ pub struct Service {
     #[serde(default)]
     metadata: Option<Value>,
 
-    pub actions: HashMap<String, Action>,
-    pub events: HashMap<String, Event>,
+    pub(crate) actions: HashMap<String, Action>,
+    pub(crate) events: HashMap<String, Event>,
 }
 
 impl Service {
@@ -139,11 +169,17 @@ impl Service {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
-pub enum EventType {
+pub(crate) enum EventType {
     Emit,
     Broadcast,
 }
 
+/// Context is available in all callbacks.
+///
+/// In an [action][Action] context you can send a response to the request using [`reply()`][Self::reply()]
+///
+/// In all contexts [`emit()`][Self::emit()], [`broadcast()`][Self::broadcast()] and
+/// [`call()`][Self::call()] are available
 pub struct Context<T> {
     phantom: PhantomData<T>,
 
@@ -243,5 +279,9 @@ impl<T> Context<T> {
 
     pub fn broadcast<S: Into<String>>(&self, event: S, params: Value) {
         self.broker.broadcast(event, params)
+    }
+
+    pub async fn call<S: Into<String>>(&self, action: S, params: Value) -> Result<Value, Error> {
+        self.broker.call(action, params).await
     }
 }

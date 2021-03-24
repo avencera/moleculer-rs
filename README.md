@@ -14,9 +14,17 @@ Available on crates: [crates.io/moleculer](https://crates.io/crates/moleculer)
 moleculer = "0.1.1"
 ```
 
-Simple example showing how to receive an event, for more check the [examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples)
+Simple example showing how to receive an event, and responding to a request, for more check the [examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples)
 
 ```rust
+use std::error::Error;
+use moleculer::{
+    config::{ConfigBuilder, Transporter},
+    service::{Context, Event, EventBuilder, Service},
+    ServiceBroker,
+};
+use serde::Deserialize;
+
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     env_logger::init();
@@ -37,10 +45,14 @@ async fn main() -> eyre::Result<()> {
         .add_callback(print_name)
         .build();
 
-    // create a service with events
+    // create math action
+    let math_action = ActionBuilder::new("mathAdd").add_callback(math_add).build();
+
+    // create a service with events and actions
     let greeter_service = Service::new("rustGreeter")
         .add_event(print_hi)
-        .add_event(print_name);
+        .add_event(print_name)
+        .add_action(math_action);
 
     // create service broker with service
     let service_broker = ServiceBroker::new(config).add_service(greeter_service);
@@ -50,6 +62,7 @@ async fn main() -> eyre::Result<()> {
 
     Ok(())
 }
+
 
 // callback for first event, will be called whenever "printHi" event is received
 fn print_hi(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
@@ -66,9 +79,27 @@ fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+// callback for math action
+fn math_add(ctx: Context<Action>) -> Result<(), Box<dyn Error>> {
+    // get message decode using serde
+    let msg: ActionMessage = serde_json::from_value(ctx.params.clone())?;
+    let answer = msg.a + msg.b;
+
+    // serialize reply using serde and send reply
+    let _ = ctx.reply(answer.into());
+
+    Ok(())
+}
+
 #[derive(Deserialize)]
 struct PrintNameMessage {
     name: String,
+}
+
+#[derive(Deserialize)]
+struct ActionMessage {
+    a: i32,
+    b: i32,
 }
 ```
 
@@ -86,5 +117,4 @@ struct PrintNameMessage {
 
 ### Big missing pieces:
 
-- Documentation [#16](https://github.com/primcloud/moleculer-rs/issues/16)
 - Tests [#17](https://github.com/primcloud/moleculer-rs/issues/17)

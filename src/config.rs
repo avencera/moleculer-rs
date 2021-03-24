@@ -1,4 +1,14 @@
-//! Create [Config] struct with global settings for you micro-service
+/*!
+Create Config struct using [ConfigBuilder] with global settings for you micro-service.
+
+```rust
+let config = ConfigBuilder {
+    transporter: Transporter::nats("nats://localhost:4222"),
+    ..ConfigBuilder::default()
+}
+.build();
+```
+*/
 
 use crate::util;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};

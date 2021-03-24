@@ -7,7 +7,8 @@ However it only works with the `NATS` transporter and `JSON` serializer/deserial
 
 ## Getting Started
 
-Simple example showing how to receive an event, for more check the [examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples)
+Simple example showing how to receive an event, and responding to a request, for more check the
+[examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples).
 
 ```rust
 use std::error::Error;
@@ -38,10 +39,14 @@ async fn main() -> eyre::Result<()> {
         .add_callback(print_name)
         .build();
 
-    // create a service with events
+    // create math action
+    let math_action = ActionBuilder::new("mathAdd").add_callback(math_add).build();
+
+    // create a service with events and actions
     let greeter_service = Service::new("rustGreeter")
         .add_event(print_hi)
-        .add_event(print_name);
+        .add_event(print_name)
+        .add_action(math_action);
 
     // create service broker with service
     let service_broker = ServiceBroker::new(config).add_service(greeter_service);
@@ -51,6 +56,7 @@ async fn main() -> eyre::Result<()> {
 
     Ok(())
 }
+
 
 // callback for first event, will be called whenever "printHi" event is received
 fn print_hi(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
@@ -67,9 +73,27 @@ fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+// callback for math action
+fn math_add(ctx: Context<Action>) -> Result<(), Box<dyn Error>> {
+    // get message decode using serde
+    let msg: ActionMessage = serde_json::from_value(ctx.params.clone())?;
+    let answer = msg.a + msg.b;
+
+    // serialize reply using serde and send reply
+    let _ = ctx.reply(answer.into());
+
+    Ok(())
+}
+
 #[derive(Deserialize)]
 struct PrintNameMessage {
     name: String,
+}
+
+#[derive(Deserialize)]
+struct ActionMessage {
+    a: i32,
+    b: i32,
 }
 ```
 */
@@ -92,6 +116,7 @@ use service::Service;
 use thiserror::Error;
 use tokio::sync::oneshot::{self, error};
 
+#[doc(hidden)]
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Timeout reached waiting for response")]
@@ -106,33 +131,54 @@ pub(crate) mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+/// The struct used to interact with moleculer.
+/// Use [`emit()`][Self::emit()], [`broadcast()`][Self::broadcast()] and [`call()`][Self::call()] functions.
+/// ```rust
+/// // emit an event
+/// broker.emit("printHi", json!{})
+///
+/// // broadcast an event
+/// broker.broadcast("printHi", json!{})
+///
+/// // call an action
+/// let result = broker.call("math.add", json!{"a": 1, "b": c}).await?;
+/// ```
 #[derive(Clone)]
 pub struct ServiceBroker {
     addr: Addr<broker::ServiceBroker>,
 }
 
+/// An alias to [service::Context\<service::Event>][service::Context].
+/// In all contexts [`emit()`][service::Context::emit()], [`broadcast()`][service::Context::broadcast()]
+/// and [`call()`][service::Context::call()] are available.
+pub type EventContext = service::Context<service::Event>;
+
+/// An alias to [service::Context\<service::Action>][service::Context].
+/// Send a response to a request using [`reply()`][service::Context::reply()].
+pub type ActionContext = service::Context<service::Action>;
+
 impl ServiceBroker {
-    /// Create new service broker, takes [Config] struct
+    /// Create new service broker, takes [Config] struct.
     pub fn new(config: Config) -> ServiceBroker {
         ServiceBroker {
             addr: spawn_actor(broker::ServiceBroker::new(config)),
         }
     }
 
-    /// Add a service to the service broker
+    /// Add a service to the service broker.
     pub fn add_service(self, service: Service) -> Self {
         send!(self.addr.add_service(service));
         self
     }
 
-    /// Add all the services to the service broker at once
-    /// Takes a vector of services and replaces any services the broker already had
+    /// Add all the services to the service broker at once.
+    /// Takes a vector of services and replaces any services the broker already had.
     pub fn add_services(self, services: Vec<Service>) -> Self {
         send!(self.addr.add_services(services));
         self
     }
 
-    /// Starts the service, this will run forever until your application closes
+    /// Starts the service, this will run forever until your application exits.
     pub async fn start(self) {
         self.addr.termination().await
     }
@@ -140,9 +186,6 @@ impl ServiceBroker {
     /// Request/Response style call
     /// Call an action directly with params serialized into
     /// [serde_json::Value](https://docs.rs/serde_json/1.0.64/serde_json/value/index.html) and `await` on the result
-    /// ```rust
-    ///  let result = broker.call("math.add", json!{"a": 1, "b": c}).await?;
-    /// ```
     pub async fn call<S: Into<String>>(self, action: S, params: Value) -> Result<Value, Error> {
         let (tx, rx) = oneshot::channel();
 
@@ -152,12 +195,12 @@ impl ServiceBroker {
         Ok(response_value)
     }
 
-    /// Emits a balanced event to one of the nodes
+    /// Emits a balanced event to one of the nodes.
     pub fn emit<S: Into<String>>(&self, event: S, params: Value) {
         send!(self.addr.emit(event.into(), params))
     }
 
-    /// Emits an event to all the nodes that can handle the event
+    /// Emits an event to all the nodes that can handle the event.
     pub fn broadcast<S: Into<String>>(&self, event: S, params: Value) {
         send!(self.addr.broadcast(event.into(), params))
     }
