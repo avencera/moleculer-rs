@@ -48,13 +48,13 @@ pub(crate) enum Error {
     UnableToStartListeners,
 
     #[error(transparent)]
-    NatsError(#[from] nats::Error),
+    Nats(#[from] nats::Error),
 
     #[error(transparent)]
-    DeserializeError(#[from] config::DeserializeError),
+    Deserialize(#[from] config::DeserializeError),
 
     #[error(transparent)]
-    SerializeError(#[from] config::SerializeError),
+    Serialize(#[from] config::SerializeError),
 }
 
 #[async_trait]

@@ -169,7 +169,7 @@ impl Service {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum EventType {
+pub enum EventType {
     Emit,
     Broadcast,
 }
@@ -281,7 +281,7 @@ impl<T> Context<T> {
         self.broker.broadcast(event, params)
     }
 
-    pub async fn call<S: Into<String>>(&self, action: S, params: Value) -> Result<Value, Error> {
+    pub async fn call<S: Into<String>>(self, action: S, params: Value) -> Result<Value, Error> {
         self.broker.call(action, params).await
     }
 }
