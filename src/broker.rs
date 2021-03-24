@@ -31,7 +31,7 @@ use self::registry::Registry;
 #[derive(Error, Debug)]
 pub(crate) enum Error {
     #[error(transparent)]
-    ChannelError(#[from] channels::Error),
+    Channel(#[from] channels::Error),
 
     #[error("Unable to deserialize to EventContext: {0}")]
     EventDeserializeFail(#[from] config::DeserializeError),
@@ -128,7 +128,7 @@ impl Actor for ServiceBroker {
 
         let channel_supervisor = channels::start_supervisor(pid, Arc::clone(&self.config))
             .await
-            .map_err(Error::ChannelError)?;
+            .map_err(Error::Channel)?;
 
         send!(self.pid.broadcast_info());
         send!(channel_supervisor.broadcast_discover());
