@@ -11,7 +11,7 @@ However it only works with the `NATS` transporter and `JSON` serializer/deserial
 Available on crates: [crates.io/moleculer](https://crates.io/crates/moleculer)
 
 ```toml
-moleculer = "0.1.1"
+moleculer = "0.2.0"
 ```
 
 Simple example showing how to receive an event, and responding to a request, for more check the [examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples)
