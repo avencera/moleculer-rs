@@ -116,8 +116,8 @@ impl Actor for ResponseWaiter {
     async fn error(&mut self, error: ActorError) -> bool {
         error!("ResponseWaiter Actor Error: {:?}", error);
 
-        // do not stop on actor error
-        false
+        // stop actor on actor error
+        true
     }
 }
 
