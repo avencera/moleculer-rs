@@ -2,7 +2,7 @@
 [package]
 authors = ["Praveen Perera <praveen@primcloud.com>"]
 build = "build.rs"
-description = "Progressive microservices framework for Rust, based on and compatible with nmoleculerjs/moleculer"
+description = "Progressive microservices framework for Rust, based on and compatible with moleculerjs/moleculer"
 documentation = "https://docs.rs/moleculer"
 edition = "2018"
 homepage = "https://github.com/primcloud/moleculer-rs"
