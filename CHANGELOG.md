@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.2] – 2021-03-25
+
+- Fix examples in docs
+
 ## [0.3.1] – 2021-03-25
 
 - Update README
