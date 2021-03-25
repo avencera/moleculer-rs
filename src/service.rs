@@ -144,24 +144,24 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new<S: Into<String>>(name: S) -> Service {
-        Service {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self {
             name: name.into(),
             ..Default::default()
         }
     }
 
-    pub fn set_version(mut self, version: i32) -> Service {
+    pub fn set_version(mut self, version: i32) -> Self {
         self.version = Some(version);
         self
     }
 
-    pub fn add_action(mut self, action: Action) -> Service {
+    pub fn add_action(mut self, action: Action) -> Self {
         self.actions.insert(action.name.clone(), action);
         self
     }
 
-    pub fn add_event(mut self, event: Event) -> Service {
+    pub fn add_event(mut self, event: Event) -> Self {
         self.events.insert(event.name.clone(), event);
         self
     }

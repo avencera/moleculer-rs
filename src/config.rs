@@ -2,15 +2,14 @@
 Create Config struct using [ConfigBuilder] with global settings for you micro-service.
 
 ```rust
-let config = ConfigBuilder {
-    transporter: Transporter::nats("nats://localhost:4222"),
-    ..ConfigBuilder::default()
-}
-.build();
+let config = ConfigBuilder::default()
+    .transporter(Transporter::nats("nats://localhost:4222"))
+    .build();
 ```
 */
 
 use crate::util;
+use derive_builder::Builder;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{borrow::Cow, fmt::Display};
@@ -18,130 +17,70 @@ use strum::{EnumIter, IntoEnumIterator};
 use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Debug)]
-pub struct ConfigBuilder {
-    pub namespace: String,
-    pub node_id: String,
-    pub logger: Logger,
-    pub log_level: log::Level,
-    pub transporter: Transporter,
-    pub request_timeout: i32,
-    pub retry_policy: RetryPolicy,
-    pub context_params_cloning: bool,
-    pub dependency_internal: u32,
-    pub max_call_level: u32,
-    pub heartbeat_interval: u32,
-    pub heartbeat_timeout: u32,
-    pub tracking: Tracking,
-    pub disable_balancer: bool,
-    pub registry: Registry,
-    pub circuit_breaker: CircuitBreaker,
-    pub bulkhead: Bulkhead,
-    pub transit: Transit,
-    pub serializer: Serializer,
-    pub meta_data: HashMap<String, String>,
-}
-
-impl ConfigBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn build(self) -> Config {
-        Config {
-            namespace: self.namespace,
-            node_id: self.node_id,
-            logger: self.logger,
-            log_level: self.log_level,
-            transporter: self.transporter,
-            request_timeout: self.request_timeout,
-            retry_policy: self.retry_policy,
-            context_params_cloning: self.context_params_cloning,
-            dependency_internal: self.dependency_internal,
-            max_call_level: self.max_call_level,
-            heartbeat_interval: self.heartbeat_interval,
-            heartbeat_timeout: self.heartbeat_timeout,
-            tracking: self.tracking,
-            disable_balancer: self.disable_balancer,
-            registry: self.registry,
-            circuit_breaker: self.circuit_breaker,
-            bulkhead: self.bulkhead,
-            transit: self.transit,
-            serializer: self.serializer,
-            meta_data: self.meta_data,
-
-            hostname: util::hostname().into_owned(),
-            instance_id: Uuid::new_v4().to_string(),
-            ip_list: get_if_addrs::get_if_addrs()
-                .unwrap_or_default()
-                .iter()
-                .map(|interface| interface.addr.ip())
-                .filter(|ip| ip.is_ipv4() && !ip.is_loopback())
-                .map(|ip| ip.to_string())
-                .collect(),
-        }
-    }
-}
-
-impl Default for ConfigBuilder {
-    fn default() -> Self {
-        Self {
-            namespace: "".to_string(),
-            node_id: util::gen_node_id(),
-            logger: Logger::Console,
-            log_level: log::Level::Info,
-            transporter: Transporter::Nats("nats://localhost:4222".to_string()),
-            // 5 minute timeout
-            request_timeout: 1000 * 60 * 5,
-            retry_policy: RetryPolicy::default(),
-            context_params_cloning: false,
-            dependency_internal: 1000,
-            max_call_level: 0,
-            heartbeat_interval: 5,
-            heartbeat_timeout: 15,
-            tracking: Tracking::default(),
-            disable_balancer: false,
-            registry: Registry::Local,
-            circuit_breaker: CircuitBreaker::default(),
-            bulkhead: Bulkhead::default(),
-            transit: Transit::default(),
-            serializer: Serializer::JSON,
-            meta_data: HashMap::new(),
-        }
-    }
-}
-
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Builder)]
 #[serde(rename_all = "camelCase")]
+#[builder(pattern = "owned")]
+#[builder(build_fn(name = "build_private", private))]
+#[builder(setter(into, strip_option))]
 pub struct Config {
+    #[builder(default = "\"\".to_string()")]
     pub(crate) namespace: String,
     #[serde(rename = "nodeID")]
+    #[builder(default = "util::gen_node_id()")]
     pub(crate) node_id: String,
+    #[builder(default = "Logger::Console")]
     pub(crate) logger: Logger,
+    #[builder(default = "log::Level::Info")]
     pub(crate) log_level: log::Level,
+    #[builder(default = "Transporter::nats(\"nats://localhost:4222\")")]
     pub(crate) transporter: Transporter,
+    #[builder(default = "1000 * 60 * 5")]
     pub(crate) request_timeout: i32,
+    #[builder(default)]
     pub(crate) retry_policy: RetryPolicy,
+    #[builder(default = "false")]
     pub(crate) context_params_cloning: bool,
+    #[builder(default = "1000")]
     pub(crate) dependency_internal: u32,
+    #[builder(default = "0")]
     pub(crate) max_call_level: u32,
+    #[builder(default = "5")]
     pub(crate) heartbeat_interval: u32,
+    #[builder(default = "15")]
     pub(crate) heartbeat_timeout: u32,
+    #[builder(default)]
     pub(crate) tracking: Tracking,
+    #[builder(default = "false")]
     pub(crate) disable_balancer: bool,
+    #[builder(default = "Registry::Local")]
     pub(crate) registry: Registry,
+    #[builder(default)]
     pub(crate) circuit_breaker: CircuitBreaker,
+    #[builder(default)]
     pub(crate) bulkhead: Bulkhead,
+    #[builder(default)]
     pub(crate) transit: Transit,
+    #[builder(default = "Serializer::JSON")]
     pub(crate) serializer: Serializer,
+    #[builder(default)]
     pub(crate) meta_data: HashMap<String, String>,
 
+    #[builder(setter(skip), default = "util::ip_list()")]
     pub(crate) ip_list: Vec<String>,
+    #[builder(setter(skip), default = "util::hostname().into_owned()")]
     pub(crate) hostname: String,
+    #[builder(setter(skip), default = "Uuid::new_v4().to_string()")]
     pub(crate) instance_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl ConfigBuilder {
+    pub fn build(self) -> Config {
+        self.build_private()
+            .expect("will always work because all fields have defaults")
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub enum Logger {
     Console,
 }
@@ -152,6 +91,8 @@ pub enum Transporter {
 }
 
 impl Transporter {
+    /// Create a NATS transporter with address, ex:
+    /// `Transporter::nats("nats://localhost:4222")`
     pub fn nats<S: Into<String>>(nats_address: S) -> Self {
         Self::Nats(nats_address.into())
     }
@@ -285,7 +226,7 @@ impl Default for Transit {
 }
 
 #[derive(EnumIter, Debug, PartialEq, Hash, Eq, Clone)]
-pub enum Channel {
+pub(crate) enum Channel {
     Event,
     Request,
     Response,
