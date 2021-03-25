@@ -2,6 +2,8 @@
 Create Config struct using [ConfigBuilder] with global settings for you micro-service.
 
 ```rust
+use moleculer::config::{ConfigBuilder, Transporter};
+
 let config = ConfigBuilder::default()
     .transporter(Transporter::nats("nats://localhost:4222"))
     .build();

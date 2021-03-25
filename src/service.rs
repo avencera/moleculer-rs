@@ -1,28 +1,49 @@
-/*!
-Create [Service] struct with [Events][Event] and [Actions][Action].
-
-```rust
-let greeter_service = Service::new("rustGreeter")
-    .add_event(print_hi)
-    .add_event(print_name)
-    .add_action(math_action);
-
-// callback for first event, will be called whenever "printHi" event is received
-fn print_hi(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
-  {...}
-}
-
-// callback for second event, will be called whenever "printName" event is received
-fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
-   {...}
-}
-
-// callback for math action
-fn math_add(ctx: Context<Action>) -> Result<(), Box<dyn Error>> {
-   {...}
-}
-```
-*/
+//! Create [Service] struct with [Events][Event] and [Actions][Action].
+//!
+//! ```rust
+//! use std::error::Error;
+//! use moleculer::{
+//!     service::{EventBuilder, Service, ActionBuilder},
+//!     EventContext, ActionContext, ServiceBroker,
+//! };
+//!
+//! // create the first event
+//! let print_hi = EventBuilder::new("printHi").add_callback(print_hi).build();
+//!
+//! // create the second event
+//! let print_name = EventBuilder::new("printName")
+//!     .add_callback(print_name)
+//!     .build();
+//!
+//! // create math action
+//! let math_action = ActionBuilder::new("mathAdd").add_callback(math_add).build();
+//!
+//! let greeter_service = Service::new("rustGreeter")
+//!     .add_event(print_hi)
+//!     .add_event(print_name)
+//!     .add_action(math_action);
+//!
+//! // callback for first event, will be called whenever "printHi" event is received
+//! fn print_hi(_ctx: EventContext) -> Result<(), Box<dyn Error>> {
+//!   /* handle event */
+//!   Ok(())
+//! }
+//!
+//! // callback for second event, will be called whenever "printName" event is received
+//! fn print_name(ctx: EventContext) -> Result<(), Box<dyn Error>> {
+//!   /* handle event */
+//!   Ok(())
+//! }
+//!
+//! // callback for math action
+//! fn math_add(ctx: ActionContext) -> Result<(), Box<dyn Error>> {
+//!   /* compute value */
+//!
+//!   // send reply with value
+//!   ctx.reply(serde_json::json!{{}});
+//!   Ok(())
+//! }
+//! ```
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

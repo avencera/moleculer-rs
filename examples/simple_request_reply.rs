@@ -2,8 +2,8 @@ use std::error::Error;
 
 use moleculer::{
     config::{ConfigBuilder, Transporter},
-    service::{Action, ActionBuilder, Context, Service},
-    ServiceBroker,
+    service::{ActionBuilder, Service},
+    ActionContext, ServiceBroker,
 };
 use serde::Deserialize;
 
@@ -24,7 +24,7 @@ async fn main() -> eyre::Result<()> {
 
     Ok(())
 }
-fn math_add(ctx: Context<Action>) -> Result<(), Box<dyn Error>> {
+fn math_add(ctx: ActionContext) -> Result<(), Box<dyn Error>> {
     // get message decode using serde
     let msg: ActionMessage = serde_json::from_value(ctx.params.clone())?;
     let answer = msg.a + msg.b;

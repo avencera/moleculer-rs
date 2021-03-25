@@ -16,8 +16,8 @@ use serde::Deserialize;
 
 use moleculer::{
     config::{ConfigBuilder, Transporter},
-    service::{Context, Event, EventBuilder, Service},
-    ServiceBroker,
+    service::{EventBuilder, Service, ActionBuilder},
+    EventContext, ActionContext, ServiceBroker,
 };
 
 #[tokio::main]
@@ -26,7 +26,7 @@ async fn main() -> eyre::Result<()> {
     color_eyre::install()?;
 
     // build config
-    let config = ConfigBuilder::default().transporter("nats://localhost:4222")
+    let config = ConfigBuilder::default().transporter(Transporter::nats("nats://localhost:4222"))
     .build();
 
     // create the first event
@@ -57,13 +57,13 @@ async fn main() -> eyre::Result<()> {
 
 
 // callback for first event, will be called whenever "printHi" event is received
-fn print_hi(_ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
+fn print_hi(_ctx: EventContext) -> Result<(), Box<dyn Error>> {
     println!("Hello from Rust");
     Ok(())
 }
 
 // callback for second event, will be called whenever "printName" event is received
-fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
+fn print_name(ctx: EventContext) -> Result<(), Box<dyn Error>> {
     let msg: PrintNameMessage = serde_json::from_value(ctx.params)?;
 
     println!("Hello to: {} from Rust", msg.name);
@@ -72,7 +72,7 @@ fn print_name(ctx: Context<Event>) -> Result<(), Box<dyn Error>> {
 }
 
 // callback for math action
-fn math_add(ctx: Context<Action>) -> Result<(), Box<dyn Error>> {
+fn math_add(ctx: ActionContext) -> Result<(), Box<dyn Error>> {
     // get message decode using serde
     let msg: ActionMessage = serde_json::from_value(ctx.params.clone())?;
     let answer = msg.a + msg.b;
@@ -131,12 +131,12 @@ pub(crate) mod built_info {
 
 /// The struct used to interact with moleculer.
 /// Use [`emit()`][Self::emit()], [`broadcast()`][Self::broadcast()] and [`call()`][Self::call()] functions.
-/// ```rust
+/// ```rust, ignore
 /// // emit an event
-/// broker.emit("printHi", json!{})
+/// broker.emit("printHi", json!{{}});
 ///
 /// // broadcast an event
-/// broker.broadcast("printHi", json!{})
+/// broker.broadcast("printHi", json!{{}});
 ///
 /// // call an action
 /// let result = broker.call("math.add", json!{"a": 1, "b": c}).await?;
