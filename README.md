@@ -1,5 +1,11 @@
 # moleculer-rs
 
+![Build Status](https://github.com/primcloud/moleculer/workflows/Rust/badge.svg)
+[![Crates.io](https://img.shields.io/crates/v/moleculer.svg)](https://crates.io/crates/moleculer)
+[![Documentation](https://docs.rs/moleculer/badge.svg)](https://docs.rs/moleculer)
+[![Rust 1.32+](https://img.shields.io/badge/rust-1.31+-orange.svg)](https://www.rust-lang.org)
+![](https://img.shields.io/badge/unsafe-forbidden-brightgreen.svg)
+
 Inspired and compatible with [Moleculer JS](https://github.com/moleculerjs/moleculer)
 
 You can currently do all the basics of `emit`, `broadcast` and `call`.
