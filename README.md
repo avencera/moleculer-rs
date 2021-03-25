@@ -10,6 +10,8 @@ However it only works with the `NATS` transporter and `JSON` serializer/deserial
 
 Available on crates: [crates.io/moleculer](https://crates.io/crates/moleculer)
 
+Documentation available at: [docs.rs/moleculer](https://docs.rs/moleculer/)
+
 ```toml
 moleculer = "0.3.0"
 ```
