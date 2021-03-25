@@ -1,6 +1,6 @@
 # moleculer-rs
 
-![Build Status](https://github.com/primcloud/moleculer/workflows/Rust/badge.svg)
+![Build Status](https://github.com/primcloud/moleculer-rs/workflows/Rust/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/moleculer.svg)](https://crates.io/crates/moleculer)
 [![Documentation](https://docs.rs/moleculer/badge.svg)](https://docs.rs/moleculer)
 [![Rust 1.47+](https://img.shields.io/badge/rust-1.47+-orange.svg)](https://www.rust-lang.org)
