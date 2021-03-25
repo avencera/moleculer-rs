@@ -13,7 +13,7 @@ Available on crates: [crates.io/moleculer](https://crates.io/crates/moleculer)
 Documentation available at: [docs.rs/moleculer](https://docs.rs/moleculer/)
 
 ```toml
-moleculer = "0.3.0"
+moleculer = "0.3.1"
 ```
 
 Simple example showing how to receive an event, and responding to a request, for more check the [examples folder](https://github.com/primcloud/moleculer-rs/tree/master/examples)

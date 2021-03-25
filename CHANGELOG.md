@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.1] – 2021-03-25
+
+- Update README
+
 ## [0.3.0] – 2021-03-24
 
 - Replace custom `ConfigBuilder` with derived one
