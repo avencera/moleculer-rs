@@ -4,7 +4,6 @@
 [![Crates.io](https://img.shields.io/crates/v/moleculer.svg)](https://crates.io/crates/moleculer)
 [![Documentation](https://docs.rs/moleculer/badge.svg)](https://docs.rs/moleculer)
 [![Rust 1.47+](https://img.shields.io/badge/rust-1.47+-orange.svg)](https://www.rust-lang.org)
-![](https://img.shields.io/badge/unsafe-forbidden-brightgreen.svg)
 
 Inspired and compatible with [Moleculer JS](https://github.com/moleculerjs/moleculer)
 
