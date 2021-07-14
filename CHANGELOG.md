@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.4] – 2021-07-15
+
+- Updated dependencies and ran clippy-fix
+
 ## [0.3.3] – 2021-03-25
 
 - Fix build status badge in README
