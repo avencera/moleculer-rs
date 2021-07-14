@@ -117,7 +117,7 @@ impl Heartbeat {
     async fn send_heartbeat(&self) -> ActorResult<()> {
         let msg = outgoing::HeartbeatMessage::new(
             &self.config.node_id,
-            self.system.get_global_processor_info().get_cpu_usage(),
+            self.system.global_processor_info().cpu_usage(),
         );
 
         send!(self

@@ -24,7 +24,7 @@ where
     }
 
     pub(crate) fn remove(&mut self, item: &T) {
-        if self.set.remove(&item) {
+        if self.set.remove(item) {
             self.queue
                 .iter()
                 .position(|x| x == item)

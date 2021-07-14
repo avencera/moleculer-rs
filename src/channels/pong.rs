@@ -50,7 +50,7 @@ impl Pong {
         Self {
             parent,
             channel: conn
-                .subscribe(&Channel::Pong.channel_to_string(&config))
+                .subscribe(&Channel::Pong.channel_to_string(config))
                 .await
                 .unwrap(),
             config: Arc::clone(config),

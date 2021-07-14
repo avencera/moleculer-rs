@@ -306,7 +306,6 @@ impl ServiceBroker {
 
         let callback = event
             .callback
-            .clone()
             .ok_or_else(|| Error::EventCallbackNotFound(event_message.event.clone()))?;
 
         let event_context = Context::<Event>::new(event_message, self.pid.clone().into());
@@ -329,7 +328,6 @@ impl ServiceBroker {
 
         let callback = request
             .callback
-            .clone()
             .ok_or_else(|| Error::ActionCallbackNotFound(request_message.action.clone()))?;
 
         let request_context = Context::<Action>::new(request_message, self.pid.clone().into());

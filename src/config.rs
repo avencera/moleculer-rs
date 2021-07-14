@@ -253,19 +253,19 @@ impl Channel {
 
     pub(crate) fn channel_to_string(&self, config: &Config) -> String {
         match self {
-            Channel::Event => format!("{}.EVENT.{}", mol(&config), &config.node_id),
-            Channel::Request => format!("{}.REQ.{}", mol(&config), &config.node_id),
-            Channel::Response => format!("{}.RES.{}", mol(&config), &config.node_id),
-            Channel::Discover => format!("{}.DISCOVER", mol(&config)),
-            Channel::DiscoverTargeted => format!("{}.DISCOVER.{}", mol(&config), &config.node_id),
-            Channel::Info => format!("{}.INFO", mol(&config)),
-            Channel::InfoTargeted => format!("{}.INFO.{}", mol(&config), &config.node_id),
-            Channel::Heartbeat => format!("{}.HEARTBEAT", mol(&config)),
-            Channel::Ping => format!("{}.PING", mol(&config)),
-            Channel::PingTargeted => format!("{}.PING.{}", mol(&config), &config.node_id),
-            Channel::PongPrefix => format!("{}.PONG", mol(&config)),
-            Channel::Pong => format!("{}.PONG.{}", mol(&config), &config.node_id),
-            Channel::Disconnect => format!("{}.DISCONNECT", mol(&config)),
+            Channel::Event => format!("{}.EVENT.{}", mol(config), &config.node_id),
+            Channel::Request => format!("{}.REQ.{}", mol(config), &config.node_id),
+            Channel::Response => format!("{}.RES.{}", mol(config), &config.node_id),
+            Channel::Discover => format!("{}.DISCOVER", mol(config)),
+            Channel::DiscoverTargeted => format!("{}.DISCOVER.{}", mol(config), &config.node_id),
+            Channel::Info => format!("{}.INFO", mol(config)),
+            Channel::InfoTargeted => format!("{}.INFO.{}", mol(config), &config.node_id),
+            Channel::Heartbeat => format!("{}.HEARTBEAT", mol(config)),
+            Channel::Ping => format!("{}.PING", mol(config)),
+            Channel::PingTargeted => format!("{}.PING.{}", mol(config), &config.node_id),
+            Channel::PongPrefix => format!("{}.PONG", mol(config)),
+            Channel::Pong => format!("{}.PONG.{}", mol(config), &config.node_id),
+            Channel::Disconnect => format!("{}.DISCONNECT", mol(config)),
         }
     }
 
@@ -274,9 +274,9 @@ impl Channel {
         S: AsRef<str> + Display,
     {
         match self {
-            Channel::Event => format!("{}.EVENT.{}", mol(&config), node_name),
-            Channel::Response => format!("{}.RES.{}", mol(&config), node_name),
-            Channel::Request => format!("{}.REQ.{}", mol(&config), node_name),
+            Channel::Event => format!("{}.EVENT.{}", mol(config), node_name),
+            Channel::Response => format!("{}.RES.{}", mol(config), node_name),
+            Channel::Request => format!("{}.REQ.{}", mol(config), node_name),
             _ => unreachable!(),
         }
     }
