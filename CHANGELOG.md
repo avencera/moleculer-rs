@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.5] – 2021-08-03
+
+- Updated async-nats dependency
+
 ## [0.3.4] – 2021-07-15
 
 - Updated dependencies and ran clippy-fix
