@@ -56,4 +56,4 @@ built = "0.5"
 color-eyre = "0.5"
 env_logger = "0.9"
 eyre = "0.6"
-tokio = {version = "1.1", features = ["rt-multi-thread", "macros", "sync"]}
+tokio = {version = "1.28.0", features = ["rt-multi-thread", "macros", "sync"]}
