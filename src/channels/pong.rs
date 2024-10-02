@@ -5,8 +5,9 @@ use crate::{
 
 use super::{ChannelSupervisor, Error};
 use act_zero::*;
-use async_nats::{Message, Subscription};
+use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -28,7 +29,7 @@ impl Actor for Pong {
 #[allow(dead_code)]
 pub(crate) struct Pong {
     config: Arc<Config>,
-    channel: Subscription,
+    channel: async_nats::Subscriber,
     parent: WeakAddr<ChannelSupervisor>,
 }
 
@@ -69,7 +70,7 @@ impl Pong {
     }
 
     async fn handle_message(&self, _msg: Message) -> Result<(), Error> {
-        // let pong_msg: PongMessage = self.config.serializer.deserialize(&msg.data)?;
+        // let pong_msg: PongMessage = self.config.serializer.deserialize(&msg.payload)?;
         // do nothing with incoming disconnect messages for now
         Ok(())
     }

@@ -8,6 +8,7 @@ use super::messages::incoming::InfoMessage;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -48,7 +49,7 @@ impl Info {
     // INFO packets received when a new client connects and broadcasts it's INFO
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for INFO messages");
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Info.channel_to_string(&self.config))
             .await
@@ -65,7 +66,7 @@ impl Info {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let info_message: InfoMessage = self.config.serializer.deserialize(&msg.data)?;
+        let info_message: InfoMessage = self.config.serializer.deserialize(&msg.payload)?;
         send!(self.broker.handle_info_message(info_message));
 
         Produces::ok(())
@@ -109,7 +110,7 @@ impl InfoTargeted {
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for INFO (targeted) messages");
 
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::InfoTargeted.channel_to_string(&self.config))
             .await
@@ -129,7 +130,7 @@ impl InfoTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let info_message: InfoMessage = self.config.serializer.deserialize(&msg.data)?;
+        let info_message: InfoMessage = self.config.serializer.deserialize(&msg.payload)?;
         send!(self.broker.handle_info_message(info_message));
 
         Produces::ok(())

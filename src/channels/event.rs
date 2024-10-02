@@ -9,6 +9,7 @@ use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
 use config::DeserializeError;
+use futures::StreamExt;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -48,7 +49,7 @@ impl Event {
 
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for EVENT messages");
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Event.channel_to_string(&self.config))
             .await
@@ -66,7 +67,7 @@ impl Event {
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let event_context: Result<EventMessage, DeserializeError> =
-            self.config.serializer.deserialize(&msg.data);
+            self.config.serializer.deserialize(&msg.payload);
 
         send!(self.broker.handle_incoming_event(event_context));
 

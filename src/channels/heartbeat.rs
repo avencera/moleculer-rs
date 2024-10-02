@@ -11,9 +11,10 @@ use act_zero::timer::Tick;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use std::{sync::Arc, time::Duration};
-use sysinfo::{RefreshKind, CpuRefreshKind, System, SystemExt, CpuExt};
+use sysinfo::{CpuRefreshKind, RefreshKind, System};
 
 pub(crate) struct Heartbeat {
     pid: Addr<Self>,
@@ -54,7 +55,8 @@ impl Actor for Heartbeat {
 #[async_trait]
 impl Tick for Heartbeat {
     async fn tick(&mut self) -> ActorResult<()> {
-        self.system.refresh_cpu_specifics(CpuRefreshKind::everything().without_frequency());
+        self.system
+            .refresh_cpu_specifics(CpuRefreshKind::everything().without_frequency());
 
         if self.timer.tick() {
             self.timer.set_timeout_for_strong(
@@ -83,7 +85,7 @@ impl Heartbeat {
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
             system: System::new_with_specifics(
-                RefreshKind::new().with_cpu(CpuRefreshKind::everything())
+                RefreshKind::new().with_cpu(CpuRefreshKind::everything()),
             ),
         }
     }
@@ -91,7 +93,7 @@ impl Heartbeat {
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for HEARTBEAT messages");
 
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Heartbeat.channel_to_string(&self.config))
             .await
@@ -109,7 +111,7 @@ impl Heartbeat {
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
         let heartbeat: incoming::HeartbeatMessage =
-            self.config.serializer.deserialize(&msg.data)?;
+            self.config.serializer.deserialize(&msg.payload)?;
 
         send!(self.broker.handle_heartbeat_message(heartbeat));
 
@@ -117,10 +119,8 @@ impl Heartbeat {
     }
 
     async fn send_heartbeat(&self) -> ActorResult<()> {
-        let msg = outgoing::HeartbeatMessage::new(
-            &self.config.node_id,
-            self.system.global_cpu_info().cpu_usage(),
-        );
+        let msg =
+            outgoing::HeartbeatMessage::new(&self.config.node_id, self.system.global_cpu_usage());
 
         send!(self
             .parent

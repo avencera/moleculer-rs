@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0] – 2024-10-02
+
+- Updated broken dependencies that were preventing compilation on newer versions of Rust, thanks to [@isaac-nls](https://github.com/isaac-nls), in [#27](https://github.com/avencera/moleculer-rs/pull/27)
+- Fix clippy warnings
+- Upgrade `async-nats` to `0.37` from `0.10`
+
 ## [0.3.5] – 2021-08-03
 
 - Updated async-nats dependency

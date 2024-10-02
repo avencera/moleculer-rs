@@ -11,6 +11,7 @@ use super::{
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -51,7 +52,7 @@ impl Ping {
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PING messages");
 
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Ping.channel_to_string(&self.config))
             .await
@@ -68,7 +69,7 @@ impl Ping {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let ping_message: PingMessage = self.config.serializer.deserialize(&msg.data)?;
+        let ping_message: PingMessage = self.config.serializer.deserialize(&msg.payload)?;
         let channel = format!(
             "{}.{}",
             Channel::PongPrefix.channel_to_string(&self.config),
@@ -122,7 +123,7 @@ impl PingTargeted {
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for PING (targeted) messages");
 
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::PingTargeted.channel_to_string(&self.config))
             .await
@@ -139,7 +140,7 @@ impl PingTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let ping_message: PingMessage = self.config.serializer.deserialize(&msg.data)?;
+        let ping_message: PingMessage = self.config.serializer.deserialize(&msg.payload)?;
         let channel = format!(
             "{}.{}",
             Channel::PongPrefix.channel_to_string(&self.config),

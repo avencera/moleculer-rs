@@ -8,6 +8,7 @@ use super::messages::incoming::DisconnectMessage;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -48,7 +49,7 @@ impl Disconnect {
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCONNECT messages");
 
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Disconnect.channel_to_string(&self.config))
             .await
@@ -65,7 +66,7 @@ impl Disconnect {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let disconnect_msg: DisconnectMessage = self.config.serializer.deserialize(&msg.data)?;
+        let disconnect_msg: DisconnectMessage = self.config.serializer.deserialize(&msg.payload)?;
 
         send!(self.broker.handle_disconnect_message(disconnect_msg));
 

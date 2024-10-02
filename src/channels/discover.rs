@@ -8,6 +8,7 @@ use super::{messages::incoming, messages::outgoing, ChannelSupervisor};
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -50,7 +51,7 @@ impl Discover {
 
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCOVER messages");
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Discover.channel_to_string(&self.config))
             .await
@@ -78,7 +79,9 @@ impl Discover {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
+        let discover: incoming::DiscoverMessage =
+            self.config.serializer.deserialize(&msg.payload)?;
+
         let channel = format!(
             "{}.{}",
             Channel::Info.channel_to_string(&self.config),
@@ -129,7 +132,7 @@ impl DiscoverTargeted {
 
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for DISCOVER (targeted) messages");
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::DiscoverTargeted.channel_to_string(&self.config))
             .await
@@ -146,7 +149,8 @@ impl DiscoverTargeted {
     }
 
     async fn handle_message(&self, msg: Message) -> ActorResult<()> {
-        let discover: incoming::DiscoverMessage = self.config.serializer.deserialize(&msg.data)?;
+        let discover: incoming::DiscoverMessage =
+            self.config.serializer.deserialize(&msg.payload)?;
         let channel = format!(
             "{}.{}",
             Channel::Info.channel_to_string(&self.config),

@@ -9,6 +9,7 @@ use act_zero::timer::Tick;
 use act_zero::*;
 use async_nats::Message;
 use async_trait::async_trait;
+use futures::StreamExt as _;
 use log::{debug, error, info};
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -65,7 +66,7 @@ impl Response {
 
     pub(crate) async fn listen(&mut self, pid: Addr<Self>) {
         info!("Listening for RESPONSE messages");
-        let channel = self
+        let mut channel = self
             .conn
             .subscribe(&Channel::Response.channel_to_string(&self.config))
             .await
@@ -86,7 +87,7 @@ impl Response {
     }
 
     async fn handle_message(&mut self, msg: Message) -> ActorResult<()> {
-        let response: ResponseMessage = self.config.serializer.deserialize(&msg.data)?;
+        let response: ResponseMessage = self.config.serializer.deserialize(&msg.payload)?;
         let response_id = response.id.clone();
 
         if let Some(response_waiter) = self.waiters.get(&response_id) {
