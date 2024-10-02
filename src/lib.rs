@@ -96,6 +96,8 @@ struct ActionMessage {
 ```
 */
 
+#![allow(clippy::manual_inspect)]
+
 mod data_structures;
 mod util;
 

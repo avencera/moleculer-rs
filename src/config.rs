@@ -62,7 +62,7 @@ pub struct Config {
     pub(crate) bulkhead: Bulkhead,
     #[builder(default)]
     pub(crate) transit: Transit,
-    #[builder(default = "Serializer::JSON")]
+    #[builder(default = "Serializer::Json")]
     pub(crate) serializer: Serializer,
     #[builder(default)]
     pub(crate) meta_data: HashMap<String, String>,
@@ -119,13 +119,13 @@ pub struct Tracking {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Serializer {
-    JSON,
+    Json,
 }
 
 impl Serializer {
     pub(crate) fn serialize<T: Serialize>(&self, msg: T) -> Result<Vec<u8>, SerializeError> {
         match self {
-            Serializer::JSON => serde_json::to_vec(&msg).map_err(SerializeError::JSON),
+            Serializer::Json => serde_json::to_vec(&msg).map_err(SerializeError::Json),
         }
     }
 
@@ -134,7 +134,7 @@ impl Serializer {
         msg: &[u8],
     ) -> Result<T, DeserializeError> {
         match self {
-            Serializer::JSON => serde_json::from_slice(msg).map_err(DeserializeError::JSON),
+            Serializer::Json => serde_json::from_slice(msg).map_err(DeserializeError::Json),
         }
     }
 }
@@ -285,13 +285,13 @@ impl Channel {
 #[derive(Error, Debug)]
 pub(crate) enum SerializeError {
     #[error("Unable to serialize to json: {0}")]
-    JSON(serde_json::error::Error),
+    Json(serde_json::error::Error),
 }
 
 #[derive(Error, Debug)]
 pub(crate) enum DeserializeError {
     #[error("Unable to deserialize from json: {0}")]
-    JSON(serde_json::error::Error),
+    Json(serde_json::error::Error),
 }
 
 fn mol(config: &Config) -> Cow<str> {

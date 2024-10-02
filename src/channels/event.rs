@@ -11,10 +11,6 @@ use async_trait::async_trait;
 use config::DeserializeError;
 use log::{debug, error, info};
 use std::sync::Arc;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub(crate) enum Error {}
 
 #[async_trait]
 impl Actor for Event {

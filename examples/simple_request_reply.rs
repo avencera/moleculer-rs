@@ -30,7 +30,7 @@ fn math_add(ctx: ActionContext) -> Result<(), Box<dyn Error>> {
     let answer = msg.a + msg.b;
 
     // serialize reply using serde and send
-    let _ = ctx.reply(answer.into());
+    ctx.reply(answer.into());
 
     Ok(())
 }

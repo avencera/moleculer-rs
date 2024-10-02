@@ -49,10 +49,9 @@ impl Conn {
     }
 
     pub(crate) async fn subscribe(&self, channel: &str) -> Result<Subscription> {
-        Ok(self
-            .conn
+        self.conn
             .subscribe(channel)
             .await
-            .map_err(|e| Error::UnableToSubscribe(channel.to_string(), e))?)
+            .map_err(|e| Error::UnableToSubscribe(channel.to_string(), e))
     }
 }
