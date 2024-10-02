@@ -13,7 +13,7 @@ use async_nats::Message;
 use async_trait::async_trait;
 use log::{debug, error, info};
 use std::{sync::Arc, time::Duration};
-use sysinfo::{ProcessorExt, RefreshKind, System, SystemExt};
+use sysinfo::{RefreshKind, CpuRefreshKind, System, SystemExt, CpuExt};
 
 pub(crate) struct Heartbeat {
     pid: Addr<Self>,
@@ -54,7 +54,7 @@ impl Actor for Heartbeat {
 #[async_trait]
 impl Tick for Heartbeat {
     async fn tick(&mut self) -> ActorResult<()> {
-        self.system.refresh_cpu();
+        self.system.refresh_cpu_specifics(CpuRefreshKind::everything().without_frequency());
 
         if self.timer.tick() {
             self.timer.set_timeout_for_strong(
@@ -82,7 +82,9 @@ impl Heartbeat {
             conn: conn.clone(),
             heartbeat_interval: config.heartbeat_interval,
             timer: Timer::default(),
-            system: System::new_with_specifics(RefreshKind::new().with_cpu()),
+            system: System::new_with_specifics(
+                RefreshKind::new().with_cpu(CpuRefreshKind::everything())
+            ),
         }
     }
 
@@ -117,7 +119,7 @@ impl Heartbeat {
     async fn send_heartbeat(&self) -> ActorResult<()> {
         let msg = outgoing::HeartbeatMessage::new(
             &self.config.node_id,
-            self.system.global_processor_info().cpu_usage(),
+            self.system.global_cpu_info().cpu_usage(),
         );
 
         send!(self
