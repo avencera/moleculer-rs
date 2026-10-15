@@ -73,7 +73,7 @@ impl Ping {
         let channel = format!(
             "{}.{}",
             Channel::PongPrefix.channel_to_string(&self.config),
-            &ping_message.sender
+            ping_message.sender
         );
 
         let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();
@@ -144,7 +144,7 @@ impl PingTargeted {
         let channel = format!(
             "{}.{}",
             Channel::PongPrefix.channel_to_string(&self.config),
-            &ping_message.sender
+            ping_message.sender
         );
 
         let pong_message: PongMessage = (ping_message, self.config.node_id.as_str()).into();

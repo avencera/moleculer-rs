@@ -45,9 +45,9 @@ impl Conn {
 
             // before 5 retries log as warning, as error after
             if retries < 5 {
-                warn!("{}", &error_message)
+                warn!("{}", error_message)
             } else {
-                error!("{}", &error_message)
+                error!("{}", error_message)
             }
 
             result = self.conn.publish(channel, message).await;
