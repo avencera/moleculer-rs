@@ -253,18 +253,18 @@ impl Channel {
 
     pub(crate) fn channel_to_string(&self, config: &Config) -> String {
         match self {
-            Channel::Event => format!("{}.EVENT.{}", mol(config), &config.node_id),
-            Channel::Request => format!("{}.REQ.{}", mol(config), &config.node_id),
-            Channel::Response => format!("{}.RES.{}", mol(config), &config.node_id),
+            Channel::Event => format!("{}.EVENT.{}", mol(config), config.node_id),
+            Channel::Request => format!("{}.REQ.{}", mol(config), config.node_id),
+            Channel::Response => format!("{}.RES.{}", mol(config), config.node_id),
             Channel::Discover => format!("{}.DISCOVER", mol(config)),
-            Channel::DiscoverTargeted => format!("{}.DISCOVER.{}", mol(config), &config.node_id),
+            Channel::DiscoverTargeted => format!("{}.DISCOVER.{}", mol(config), config.node_id),
             Channel::Info => format!("{}.INFO", mol(config)),
-            Channel::InfoTargeted => format!("{}.INFO.{}", mol(config), &config.node_id),
+            Channel::InfoTargeted => format!("{}.INFO.{}", mol(config), config.node_id),
             Channel::Heartbeat => format!("{}.HEARTBEAT", mol(config)),
             Channel::Ping => format!("{}.PING", mol(config)),
-            Channel::PingTargeted => format!("{}.PING.{}", mol(config), &config.node_id),
+            Channel::PingTargeted => format!("{}.PING.{}", mol(config), config.node_id),
             Channel::PongPrefix => format!("{}.PONG", mol(config)),
-            Channel::Pong => format!("{}.PONG.{}", mol(config), &config.node_id),
+            Channel::Pong => format!("{}.PONG.{}", mol(config), config.node_id),
             Channel::Disconnect => format!("{}.DISCONNECT", mol(config)),
         }
     }
@@ -298,6 +298,6 @@ fn mol(config: &Config) -> Cow<'_, str> {
     if config.namespace.is_empty() {
         Cow::Borrowed("MOL")
     } else {
-        Cow::Owned(format!("MOL-{}", &config.namespace))
+        Cow::Owned(format!("MOL-{}", config.namespace))
     }
 }
